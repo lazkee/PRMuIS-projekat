@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 using Domain.Repositories.WaiterRepository;
 
 namespace Domain.Helpers
@@ -26,10 +27,12 @@ namespace Domain.Helpers
             {
 
                 case "konobar":
-                    clientPath = "D:\\Programi\\Whireshark\\ProjekatSolid\\ProjekatSolid\\Client\\bin\\Debug\\Client.exe";
+                    //clientPath = "D:\\Programi\\Whireshark\\ProjekatSolid\\ProjekatSolid\\Client\\bin\\Debug\\Client.exe";
+                    clientPath = Path.Combine("..", "..", "..", "Client", "bin", "Debug", "Client.exe");
                     break;
                 case "kuvar":
-                    clientPath = "D:\\Programi\\Whireshark\\ProjekatSolid\\ProjekatSolid\\Cook\\bin\\Debug\\Cook.exe";
+                    //clientPath = "D:\\Programi\\Whireshark\\ProjekatSolid\\ProjekatSolid\\Cook\\bin\\Debug\\Cook.exe";
+                    clientPath = Path.Combine("..", "..", "..", "Client", "bin", "Debug", "Cook.exe");
                     break;
             }
 

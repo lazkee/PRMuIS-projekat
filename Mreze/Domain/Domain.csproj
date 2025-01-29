@@ -46,6 +46,9 @@
     <Compile Include="Models\Order.cs" />
     <Compile Include="Models\Table.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Repositories\OrderRepository\DrinkOrderRepository.cs" />
+    <Compile Include="Repositories\OrderRepository\FoodOrderRepository.cs" />
+    <Compile Include="Repositories\OrderRepository\IOrderRepository.cs" />
     <Compile Include="Repositories\TableRepository\ITableRepository.cs" />
     <Compile Include="Repositories\TableRepository\TableRepository.cs" />
     <Compile Include="Repositories\WaiterRepository\IWaiterRepository.cs" />

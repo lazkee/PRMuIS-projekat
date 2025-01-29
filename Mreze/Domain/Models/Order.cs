@@ -23,6 +23,11 @@ namespace Domain.Models
             _price = price;
             _articleStatus = articleStatus;
         }
+        public ArticleCategory ArticleCategory
+        {
+            get { return _articleCategory; }
+            set { _articleCategory = value; }
+        }
 
         public override string ToString()
         {
