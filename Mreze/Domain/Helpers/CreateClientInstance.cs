@@ -32,7 +32,10 @@ namespace Domain.Helpers
                     break;
                 case "kuvar":
                     //clientPath = "D:\\Programi\\Whireshark\\ProjekatSolid\\ProjekatSolid\\Cook\\bin\\Debug\\Cook.exe";
-                    clientPath = Path.Combine("..", "..", "..", "Client", "bin", "Debug", "Cook.exe");
+                    clientPath = Path.Combine("..", "..", "..", "Cook", "bin", "Debug", "Cook.exe");
+                    break;
+                case "barmen":
+                    clientPath = Path.Combine("..", "..", "..", "Barmen", "bin", "Debug", "Barmen.exe");
                     break;
             }
 

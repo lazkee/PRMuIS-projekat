@@ -1,5 +1,6 @@
 ﻿using Domain.Models;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,21 +10,22 @@ namespace Domain.Repositories.OrderRepository
 {
     public class FoodOrderRepository : IOrderRepository
     {
-        private static Queue<List<Order>> _foodOrders = new Queue<List<Order>>();
+        private static BlockingCollection<List<Order>> _foodOrders = new BlockingCollection<List<Order>>();
 
         public void AddOrder(List<Order> order)
         {
-            _foodOrders.Enqueue(order);
+            _foodOrders.Append(order);
         }
 
-        public Queue<List<Order>> GetAllOrders()
+        public BlockingCollection<List<Order>> GetAllOrders()
         {
             return _foodOrders ;
         }
 
         public List<Order> RemoveOrder()
         {
-            return _foodOrders.Dequeue();
+            var queue = new BlockingCollection<List<Order>>(new ConcurrentQueue<List<Order>>());
+            return queue.Take(); // Uklanja sa početka reda
         }
     }
 }

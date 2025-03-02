@@ -54,6 +54,7 @@
     <Compile Include="Repositories\WaiterRepository\IWaiterRepository.cs" />
     <Compile Include="Repositories\WaiterRepository\WaiterRepository.cs" />
     <Compile Include="Services\IMakeAnOrder.cs" />
+    <Compile Include="Services\IOrderManagementService.cs" />
     <Compile Include="Services\IPrepareOrder.cs" />
     <Compile Include="Services\IReadService.cs" />
     <Compile Include="Services\ISendOrderForPreparation.cs" />
