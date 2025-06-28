@@ -49,6 +49,10 @@ namespace Services.SendOrderForPreparationServices
             _foodOrderRepository.AddOrder(food);
             _drinkOrderRepository.AddOrder(drinks);
 
+            //ProcessOrdersToStaff();
+
+
+
 
             //ovo ce imati if (== food) salje novu listu od ove porudzbine sa tcp za ovu sto obradjuje kuvar PrepareFoodService a ako je == drink onda ce slati drugu novu listu za servis koji barmen ima PrepareDrinkService ali ce ta 2 servisa morati da se pokrecu u Cook i Barmenu
             //morace oba da budu threada jer ce cekati sve vreme da im server posalje porudzbine 
@@ -66,16 +70,18 @@ namespace Services.SendOrderForPreparationServices
         ///u sustini kad se barmen ili kuvar oslobodi da ono odma salje sledeci order ako queue nije prazan
         ///ali isto mora i da radi nakon dodavanju u queue gdje je on prvobitno bio prazan
         /// </summary>
-       private void ProcessOrdersToStaff(BlockingCollection<List<Order>> queue,string WorkerType)
+       private void ProcessOrdersToStaff(BlockingCollection<List<Order>> order,string WorkerType)
         {
-            foreach (var order in queue.GetConsumingEnumerable()) // Neće blokirati CPU, čeka dok ne dođe porudžbina
-            {
-                Console.WriteLine($"{WorkerType} obrađuje porudžbinu ");
-                Thread.Sleep(2000); // Simulacija vremena obrade
-                Console.WriteLine($"{WorkerType} završio porudžbinu");
-            }
+            // ovaj kod treba primjeniti u kuvaruy/sankeru kada primi poruku
+            //foreach (var order in queue.GetConsumingEnumerable()) // Neće blokirati CPU, čeka dok ne dođe porudžbina
+            //{
+            //    Console.WriteLine($"{WorkerType} obrađuje porudžbinu ");
+            //    Thread.Sleep(2000); // Simulacija vremena obrade
+            //    Console.WriteLine($"{WorkerType} završio porudžbinu");
+            //}
+
         }
 
-        
+
     }
 }

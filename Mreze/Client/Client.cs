@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net.Sockets;
 using Domain.Repositories.WaiterRepository;
 using Domain.Services;
 using Services.MakeAnOrderServices;
@@ -9,11 +10,15 @@ namespace Client
 {
     public class Client
     {
+        //private readonly Socket _workerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        //public Socket WorkerSocket => _workerSocket;
+
 
         static void Main(string[] args)
         {
 
-            Console.WriteLine($"Waiter number #{args[0]}");
+            Console.WriteLine($"Waiter number #{args[1]},");
+            Console.WriteLine($"clientId #{args[0]}");
 
             int.TryParse(args[1], out int numberOfWaiters);
             int.TryParse(args[0], out int WaiterID);

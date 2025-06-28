@@ -13,6 +13,7 @@ namespace Cook
         static void Main(string[] args)
         {
             Console.WriteLine($"Cook number #{args[0]}");
+            Console.WriteLine($"ClientId #{args[0]}");
 
             Console.ReadKey();
         }

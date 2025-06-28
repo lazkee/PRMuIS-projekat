@@ -17,6 +17,7 @@ namespace Barmen
         static void Main(string[] args)
         {
             Console.WriteLine($"Barmen number #{args[0]}");
+            Console.WriteLine($"ClientId #{args[0]}");
             Console.ReadKey();
         }
     }

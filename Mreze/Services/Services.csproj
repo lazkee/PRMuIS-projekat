@@ -42,6 +42,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="MakeAnOrderServices\MakeAnOrderWaiterService.cs" />
+    <Compile Include="NotificationServices\NotificationService.cs" />
     <Compile Include="OrderManagementService\DrinkOrderManagementService.cs" />
     <Compile Include="OrderManagementService\FoodOrderManagementService.cs" />
     <Compile Include="PrepareOrderServices\PrepareDrinkService.cs" />
