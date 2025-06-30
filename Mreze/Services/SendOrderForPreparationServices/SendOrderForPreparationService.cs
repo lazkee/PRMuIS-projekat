@@ -1,87 +1,103 @@
-﻿using System.Collections.Generic;
-using Domain.Models;
-using Domain.Services;
-using Domain.Repositories;
-using Domain.Repositories.OrderRepository;
-using System.Threading.Tasks;
-using System.Collections.Concurrent;
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading;
+using Domain.Models;
+using Domain.Repositories.OrderRepository;
+using Services;  // za NotificationService
+using Domain.Enums;
+using Domain.Services;
+using Services.NotificationServices;
 
 namespace Services.SendOrderForPreparationServices
 {
+    /// <summary>
+    /// Servis za dodelu porudžbina kuvarima i barmenima.
+    /// </summary>
     public class SendOrderForPreparationService : ISendOrderForPreparation
-    {   
-        private FoodOrderRepository _foodOrderRepository = new FoodOrderRepository();
-        private DrinkOrderRepository _drinkOrderRepository = new DrinkOrderRepository();
-
-    public SendOrderForPreparationService(int numOfChefs, int numOfBarmens)
-        {
-            // Pokretanje radnika - kuvara
-            for (int i = 0; i < numOfChefs; i++)
-            {
-                Task.Factory.StartNew(() => ProcessOrdersToStaff(_foodOrderRepository.GetAllOrders(), "Kuvar"), TaskCreationOptions.LongRunning);
-            }
-
-            // Pokretanje radnika - barmena
-            for (int i = 0; i < numOfBarmens; i++)
-            {
-                Task.Factory.StartNew(() => ProcessOrdersToStaff(_drinkOrderRepository.GetAllOrders(), "Barmen"), TaskCreationOptions.LongRunning);
-            }
-        }
-
-    public void SendOrder(int WaiterID,List<Order> orders)
-        {
-            List<Order> food = new List<Order>();
-            List<Order> drinks = new List<Order>();
-            foreach (var order in orders)
-            {
-                if(order.ArticleCategory == ArticleCategory.DRINK)
-                {
-                    drinks.Add(order);
-                }
-                else
-                {
-                    food.Add(order);
-                }
-            }
-            //dodajemo u queue
-            _foodOrderRepository.AddOrder(food);
-            _drinkOrderRepository.AddOrder(drinks);
-
-            //ProcessOrdersToStaff();
-
-
-
-
-            //ovo ce imati if (== food) salje novu listu od ove porudzbine sa tcp za ovu sto obradjuje kuvar PrepareFoodService a ako je == drink onda ce slati drugu novu listu za servis koji barmen ima PrepareDrinkService ali ce ta 2 servisa morati da se pokrecu u Cook i Barmenu
-            //morace oba da budu threada jer ce cekati sve vreme da im server posalje porudzbine 
-            //i server ce morati da ima uvid da li su oni busy ili ne kao sto ima i za konobara
-
-            //a pre toga za konobara jos fali jedan thread (vrv tcp a mozda moze i udp) koji ce stalno ocekivati da primi gotovu porudzbinu(i ispise samo da je doneo) i onda vrv jos jedan thread koji ocekuje racun od servera koji treba da ga izracuna
-            
-        }
-
+    {
+        private readonly IOrderRepository _foodOrderRepository;
+        private readonly IOrderRepository _drinkOrderRepository;
+        private readonly NotificationService _notificationService;
 
         /// <summary>
-        /// TODO
-        ///pomocne metode koje bukvalno salju porudzbine gdje treba i kada treba 
-        ///moram razmisliti kako da implementiramo nesto sto ce biti kao unique lock na os
-        ///u sustini kad se barmen ili kuvar oslobodi da ono odma salje sledeci order ako queue nije prazan
-        ///ali isto mora i da radi nakon dodavanju u queue gdje je on prvobitno bio prazan
+        /// Inicijalizuje repozitorijume i pokreće radne niti.
         /// </summary>
-       private void ProcessOrdersToStaff(BlockingCollection<List<Order>> order,string WorkerType)
+        /// <param name="numOfChefs">Broj kuvara.</param>
+        /// <param name="numOfBarmens">Broj barmena.</param>
+        /// <param name="notificationService">Servis za slanje notifikacija konobarima.</param>
+        public SendOrderForPreparationService(
+            int numOfChefs,
+            int numOfBarmens,
+            NotificationService notificationService)
         {
-            // ovaj kod treba primjeniti u kuvaruy/sankeru kada primi poruku
-            //foreach (var order in queue.GetConsumingEnumerable()) // Neće blokirati CPU, čeka dok ne dođe porudžbina
-            //{
-            //    Console.WriteLine($"{WorkerType} obrađuje porudžbinu ");
-            //    Thread.Sleep(2000); // Simulacija vremena obrade
-            //    Console.WriteLine($"{WorkerType} završio porudžbinu");
-            //}
+            _foodOrderRepository = new FoodOrderRepository();
+            _drinkOrderRepository = new DrinkOrderRepository();
+            _notificationService = notificationService;
 
+            // Pokretanje niti za kuvare
+            for (int i = 0; i < numOfChefs; i++)
+            {
+                new Thread(() => ProcessOrdersToStaff(_foodOrderRepository, ClientType.Cook))
+                { IsBackground = true }
+                    .Start();
+            }
+
+            // Pokretanje niti za barmene
+            for (int i = 0; i < numOfBarmens; i++)
+            {
+                new Thread(() => ProcessOrdersToStaff(_drinkOrderRepository, ClientType.Bartender))
+                { IsBackground = true }
+                    .Start();
+            }
         }
 
+        /// <summary>
+        /// Prima porudžbinu od konobara i enqueue-uje u odgovarajući repozitorijum.
+        /// </summary>
+        /// <param name="WaiterID">ID konobara.</param>
+        /// <param name="orders">Lista stavki porudžbine.</param>
+        public void SendOrder(int WaiterID, List<Order> orders)
+        {
+            var food = new List<Order>();
+            var drinks = new List<Order>();
 
+            foreach (var order in orders)
+            {
+                // Ubacujemo ID konobara u samu porudžbinu radi notifikacije
+                order._waiterId = WaiterID;
+
+                if (order.ArticleCategory == ArticleCategory.DRINK)
+                    drinks.Add(order);
+                else
+                    food.Add(order);
+            }
+
+            if (food.Count > 0)
+                _foodOrderRepository.AddOrder(food);
+            if (drinks.Count > 0)
+                _drinkOrderRepository.AddOrder(drinks);
+        }
+
+        /// <summary>
+        /// Radna nit koja konzumira porudžbine iz repozitorijuma i simulira obradu.
+        /// </summary>
+        private void ProcessOrdersToStaff(IOrderRepository repository, ClientType workerType)
+        {
+            while (true)
+            {
+                // Uklanja sledeću porudžbinu iz reda (blokira ako je prazan)
+                var batch = repository.RemoveOrder();
+                foreach (var order in batch)
+                {
+                    Console.WriteLine($"{workerType} preuzima porudžbinu: Sto={order._tableNumber}, Artikal={order._articleName}");
+                    // Simulacija vremena pripreme
+                    Thread.Sleep(2000);
+                    Console.WriteLine($"{workerType} završio porudžbinu: Sto={order._tableNumber}, Artikal={order._articleName}");
+
+                    // Obaveštavamo server/konobara da je porudžbina gotova
+                    _notificationService.NotifyOrderReady(order._tableNumber, order._waiterId);
+                }
+            }
+        }
     }
 }

@@ -8,14 +8,16 @@ namespace Domain.Models
     [Serializable]
     public class Order
     {
-        private string _articleName;
+        public string _articleName;
 
-        private ArticleCategory _articleCategory;
+        public ArticleCategory _articleCategory;
 
-        private double _price;
+        public double _price;
 
-        private ArticleStatus _articleStatus;
+        public ArticleStatus _articleStatus;
 
+        public int _waiterId { get; set; }
+        public int _tableNumber;
         public Order(string articleName, ArticleCategory articleCategory, double price, ArticleStatus articleStatus)
         {
             _articleName = articleName;
