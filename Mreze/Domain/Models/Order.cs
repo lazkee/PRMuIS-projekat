@@ -18,7 +18,7 @@ namespace Domain.Models
 
         public int _waiterId { get; set; }
         public int _tableNumber { get; set; }
-        public Order(string articleName, ArticleCategory articleCategory, double price, ArticleStatus articleStatus,int waiterId, int tableNumber)
+        public Order(string articleName, ArticleCategory articleCategory, double price, ArticleStatus articleStatus, int waiterId, int tableNumber)
         {
             _articleName = articleName;
             _articleCategory = articleCategory;

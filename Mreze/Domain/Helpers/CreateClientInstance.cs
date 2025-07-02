@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.IO;
 using Domain.Enums;
-using Domain.Repositories;
 using Domain.Repositories.WaiterRepository;
 
 namespace Server
@@ -75,7 +74,7 @@ namespace Server
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = clientPath,
-                    Arguments = $"{clientId} {i+1} {port}",
+                    Arguments = $"{clientId} {i + 1} {port}",
                     WorkingDirectory = workingDir,
                     UseShellExecute = true
                 };

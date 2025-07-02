@@ -55,7 +55,8 @@ namespace Services.TakeATableServices
                 {
                     Console.WriteLine("Nema slobodnih odgovarajucih stolova.");
                 }
-            }catch(SocketException ex)
+            }
+            catch (SocketException ex)
             {
                 Console.WriteLine($"Greska pri kontaktu sa serverp:{ex.Message}");
                 return;

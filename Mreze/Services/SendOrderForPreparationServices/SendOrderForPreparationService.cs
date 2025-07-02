@@ -8,8 +8,8 @@ using System.Threading;
 using Domain.Enums;
 using Domain.Models;
 using Domain.Repositories;
-using Domain.Services;
 using Domain.Repositories.OrderRepository;
+using Domain.Services;
 
 namespace Services.SendOrderForPreparationServices
 {
@@ -28,7 +28,7 @@ namespace Services.SendOrderForPreparationServices
             _foodRepo = foodRepository;
             _drinkRepo = drinkRepository;
 
-            // Startujemo niti za kuhare i barmene
+            // Startujemo niti za kuvare i barmene
             new Thread(() => ProcessOrdersToStaff(_foodRepo, ClientType.Cook))
             {
                 IsBackground = true

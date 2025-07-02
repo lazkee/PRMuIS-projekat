@@ -23,11 +23,11 @@ namespace Services.TakeOrdersFromWaiterServices
 
         private byte[] ReceiveMessage(Socket socket)
         {
-            
+
             byte[] lengthPrefix = new byte[4];
             int bytesRead = socket.Receive(lengthPrefix, 0, 4, SocketFlags.None);
 
-            if (bytesRead < 4)                      
+            if (bytesRead < 4)
             {
                 throw new Exception("Failed to receive message length prefix.");
             }
@@ -86,16 +86,16 @@ namespace Services.TakeOrdersFromWaiterServices
                                 Console.WriteLine(t);
                             }
                         }
-                        
+
                         //foreach(Table t in tables)
                         //{
                         //    Console.WriteLine(t);
                         //}
 
-                       // _sendOrderForPreparation.SendOrder(table);
+                        // _sendOrderForPreparation.SendOrder(table);
                     }
-                    
-                    
+
+
                 }
                 catch (Exception ex)
                 {

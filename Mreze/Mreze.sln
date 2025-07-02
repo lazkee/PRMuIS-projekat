@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "Domain\Domain.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Barmen", "Barmen\Barmen.csproj", "{30A2BC52-19D2-43E0-BF4F-64AFAA4C3544}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "Client\Client.csproj", "{825BCBE0-87F5-432C-A662-F067E4C31E48}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Waiter", "Client\Waiter.csproj", "{825BCBE0-87F5-432C-A662-F067E4C31E48}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cook", "Cook\Cook.csproj", "{B139E089-6916-49BC-9894-42E737A72871}"
 EndProject

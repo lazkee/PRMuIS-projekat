@@ -2,22 +2,19 @@
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading;
-using System.Collections.Generic;
-using System.Runtime.Serialization.Formatters.Binary;
-using Domain.Models;
 using Domain.Enums;
+using Domain.Models;
 using Domain.Repositories;
 using Domain.Repositories.OrderRepository;
-using Infrastructure.Networking;
-using Services.PrepareOrderServices;
-using Services.ServerServices;
-using Services.TakeATableServices;
 using Domain.Services;
+using Infrastructure.Networking;
 using Services.NotificationServices;
 using Services.SendOrderForPreparationServices;
-using Domain.Repositories.WaiterRepository;
+using Services.ServerServices;
+using Services.TakeATableServices;
 
 namespace Server
 {
@@ -71,6 +68,7 @@ namespace Server
         /// <summary>
         /// Listener koji prima binarni protokol: length-prefixed waiterId i serijalizovani Table.
         /// Deserijalizuje ih, loguje kao Base64 i potom prosleđuje prepService.SendOrder.
+        /// gornji thread pravi novi thread, da on moze da obavlja posao bez da blokira ostale
         /// </summary>
         private static void StartOrderListener(ISendOrderForPreparation prepService, int tcpPort)
         {
@@ -86,7 +84,7 @@ namespace Server
                     {
                         try
                         {
-                             //1) Čitaj waiterId
+                            //1) Čitaj waiterId
                             int idLen = ReadIntFromStream(stream);
                             byte[] idBuf = ReadBytesFromStream(stream, idLen);
                             int waiterId = int.Parse(Encoding.UTF8.GetString(idBuf));
@@ -97,7 +95,7 @@ namespace Server
 
                             // 3) Debug: ispiši kao Base64
                             string base64 = Convert.ToBase64String(tblBuf);
-                           // Console.WriteLine($"[SERVER] Received raw ORDER;{waiterId};<binary {tblLen} bytes>");
+                            // Console.WriteLine($"[SERVER] Received raw ORDER;{waiterId};<binary {tblLen} bytes>");
                             Console.WriteLine($"           BASE64 (start): {base64.Substring(0, Math.Min(80, base64.Length))}…");
 
                             // 4) Deserijalizuj i izvuci Order listu
@@ -192,7 +190,7 @@ namespace Server
                                     notifier.NotifyOrderReady(tableId, waiterId);
                                     Console.WriteLine(
                                         $"[SERVER] Obaveštenje poslato konobaru {waiterId} za sto {tableId}");
-                                    
+
                                     //WaiterRepository repo = new WaiterRepository();
                                     //repo.SetWaiterState(waiterId, true);
                                 }

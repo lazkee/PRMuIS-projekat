@@ -3,7 +3,6 @@ using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using Domain.Enums;
 
 namespace Cook
 {
@@ -34,7 +33,7 @@ namespace Cook
                     if (!line.StartsWith("PREPARE;")) continue;
 
                     // PREPARE;{sto};{artikal}
-                     // npr. "PREPARE;2;1;Karadjordjeva,Karadjordjeva,Burek"
+                    // npr. "PREPARE;2;1;Karadjordjeva,Karadjordjeva,Burek"
                     var parts = line.Split(new[] { ';' }, 4);
                     int tableNo = int.Parse(parts[1]);
                     int waiter = int.Parse(parts[2]);

@@ -9,7 +9,7 @@ using Services.TakeATableServices;
 using Services.WaiterManagementServices;
 namespace Client
 {
-    public class Client
+    public class Waiter
     {
         static void Main(string[] args)
         {
@@ -22,12 +22,12 @@ namespace Client
             int.TryParse(args[1], out int numberOfWaiters);
             int.TryParse(args[2], out int udpPort);
 
-             // 2) Inicijalizacija repozitorijuma i servisa
+            // 2) Inicijalizacija repozitorijuma i servisa
             var waiterRepo = new WaiterRepository(numberOfWaiters);
             var orderService = new MakeAnOrderWaiterService(waiterRepo);
-             // ZA SERVER: on sluša UDP na portu 4000
+            // ZA SERVER: on sluša UDP na portu 4000
             const int serverUdpPort = 4000;
-            var tableService = new TakeATableClientService(orderService, waiterRepo,serverUdpPort);
+            var tableService = new TakeATableClientService(orderService, waiterRepo, serverUdpPort);
 
             // **OVDE JE KLJUČ** – prosledi waiterRepo i menadžeru
             var waiterMgmt = new WaiterManagementService(tableService, waiterRepo);

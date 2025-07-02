@@ -13,7 +13,7 @@ namespace Domain.Repositories.TableRepository
 
             for (int i = 1; i < 26; ++i)
             {
-                tables.Add(new Table(i, _rng.Next(2,10), TableState.FREE, new List<Order>()));
+                tables.Add(new Table(i, _rng.Next(2, 10), TableState.FREE, new List<Order>()));
             }
             //nmg da stavim nikako drugacije da ih bude odredjen broj (ili ne znam)
         }
@@ -24,7 +24,8 @@ namespace Domain.Repositories.TableRepository
             return _tables;
         }
 
-        public Table GetByID(int id) { 
+        public Table GetByID(int id)
+        {
             return tables[id];
         }
 

@@ -1,9 +1,9 @@
-﻿using Domain.Repositories.WaiterRepository;
+﻿using System;
+using Domain.Repositories.WaiterRepository;
 using Domain.Services;
-using System;
-using System.Threading;
 
-namespace Services.WaiterManagementServices {
+namespace Services.WaiterManagementServices
+{
     public class WaiterManagementService : IWaiterManagementService
     {
         private readonly ITakeATableClientService _takeTableService;

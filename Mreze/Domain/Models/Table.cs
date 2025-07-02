@@ -20,34 +20,35 @@ namespace Domain.Models
             set { _tableNumber = value; }
         }
 
-        
+
 
         public TableState TableState
         {
             get { return _tableState; }
             set { _tableState = value; }
         }
-       
 
-        public int OccupiedBy{
-            get{return _occupiedBy;}
+
+        public int OccupiedBy
+        {
+            get { return _occupiedBy; }
             set { _occupiedBy = value; }
         }
         public int Capacity
         {
             get { return _capacity; }
-            set { _capacity = value; } 
+            set { _capacity = value; }
         }
 
 
-        public Table(int tableNumber, int numberOfGuests, TableState tableState,List<Order> orders)
+        public Table(int tableNumber, int numberOfGuests, TableState tableState, List<Order> orders)
         {
             _tableNumber = tableNumber;
             _capacity = numberOfGuests;
             _tableState = tableState;
             _orders = orders;
-            
-           
+
+
 
         }
         public List<Order> TableOrders

@@ -3,7 +3,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using Domain.Services;
-using Domain.Enums;
 
 namespace Services.TakeATableServices
 {
@@ -27,10 +26,10 @@ namespace Services.TakeATableServices
             {
                 // 1) Čitanje zahteva
                 var data = _udpServer.Receive(ref remoteEP);
-                var msg  = Encoding.UTF8.GetString(data);
+                var msg = Encoding.UTF8.GetString(data);
                 // ocekivani format: TAKE_TABLE;{waiterId};{numGuests}
                 var parts = msg.Split(';');
-                int waiterId  = int.Parse(parts[1]);
+                int waiterId = int.Parse(parts[1]);
                 int numGuests = int.Parse(parts[2]);
                 // 2) Provera maksimalnog kapaciteta stola
                 string reply;
@@ -38,7 +37,7 @@ namespace Services.TakeATableServices
                 {
                     // 2.1) Provera slobodnog stola
                     int freeTable = _readService.GetFreeTableFor(numGuests);
-                    
+
                     if (freeTable >= 0)
                     {
                         reply = $"TABLE_FREE;{freeTable}";
@@ -49,7 +48,8 @@ namespace Services.TakeATableServices
                     {
                         reply = "TABLE_BUSY";
                     }
-                } else { reply = "TABLE_BUSY"; }
+                }
+                else { reply = "TABLE_BUSY"; }
                 // 3) Slanje odgovora
                 var outData = Encoding.UTF8.GetBytes(reply);
                 _udpServer.Send(outData, outData.Length, remoteEP);

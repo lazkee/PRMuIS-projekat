@@ -1,10 +1,6 @@
-﻿using Domain.Models;
-using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Domain.Models;
 
 namespace Domain.Repositories.OrderRepository
 {
@@ -17,13 +13,13 @@ namespace Domain.Repositories.OrderRepository
         }
 
         public void AddOrder(List<Order> order)
-        { 
+        {
             _drinkOrders.Add(order);
         }
 
         public List<Order> RemoveOrder()
         {
-            
+
             return _drinkOrders.Take(); // Uklanja sa početka reda
         }
     }
