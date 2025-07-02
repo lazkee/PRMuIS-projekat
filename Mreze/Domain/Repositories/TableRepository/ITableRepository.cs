@@ -6,6 +6,7 @@ namespace Domain.Repositories.TableRepository
     public interface ITableRepository
     {
         IEnumerable<Table> GetAllTables();
+        Table GetByID(int id);
 
 
     }

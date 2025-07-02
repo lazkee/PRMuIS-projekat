@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using Domain.Models;
+using Domain.Repositories.TableRepository;
 using Domain.Repositories.WaiterRepository;
 using Domain.Services;
 
@@ -51,29 +52,31 @@ namespace Services.MakeAnOrderServices
 
                 while (true)
                 {
+                    
                     Console.Write("Order Something: ");
                     string input = Console.ReadLine();
 
                     if (int.TryParse(input, out br_narudzbine))
                     {
+                       
                         if (br_narudzbine == 0)
                             break;
 
                         switch (br_narudzbine)
                         {
-                            case 1: orders.Add(new Order("Cevapi", ArticleCategory.FOOD, 1200, ArticleStatus.INPROGRESS));
+                            case 1: orders.Add(new Order("Cevapi", ArticleCategory.FOOD, 1200, ArticleStatus.INPROGRESS, WaiterID,brojSlobodnogStola));
                                 break;
-                            case 2: orders.Add(new Order("Burek sa sirom", ArticleCategory.FOOD, 600, ArticleStatus.INPROGRESS));
+                            case 2: orders.Add(new Order("Burek sa sirom", ArticleCategory.FOOD, 600, ArticleStatus.INPROGRESS, WaiterID,brojSlobodnogStola));
                                 break;
-                            case 3: orders.Add(new Order("Karadjordjeva", ArticleCategory.FOOD, 1350, ArticleStatus.INPROGRESS));
+                            case 3: orders.Add(new Order("Karadjordjeva", ArticleCategory.FOOD, 1350, ArticleStatus.INPROGRESS, WaiterID, brojSlobodnogStola));
                                 break;
-                            case 4: orders.Add(new Order("Pica", ArticleCategory.FOOD, 1100, ArticleStatus.INPROGRESS));
+                            case 4: orders.Add(new Order("Pica", ArticleCategory.FOOD, 1100, ArticleStatus.INPROGRESS   , WaiterID, brojSlobodnogStola));
                                 break;
-                            case 5: orders.Add(new Order("Rakija", ArticleCategory.DRINK, 240, ArticleStatus.INPROGRESS));
+                            case 5: orders.Add(new Order("Rakija", ArticleCategory.DRINK, 240, ArticleStatus.INPROGRESS, WaiterID, brojSlobodnogStola));
                                 break;
-                            case 6: orders.Add(new Order("Kisela voda", ArticleCategory.DRINK, 170, ArticleStatus.INPROGRESS));
+                            case 6: orders.Add(new Order("Kisela voda", ArticleCategory.DRINK, 170, ArticleStatus.INPROGRESS, WaiterID, brojSlobodnogStola));
                                 break;
-                            case 7: orders.Add(new Order("Koka kola", ArticleCategory.DRINK, 250, ArticleStatus.INPROGRESS));
+                            case 7: orders.Add(new Order("Koka kola", ArticleCategory.DRINK, 250, ArticleStatus.INPROGRESS,WaiterID, brojSlobodnogStola));
                                 break;
                             default: Console.WriteLine("Invalid instruction. Please try again.");
                                 continue;
@@ -96,7 +99,15 @@ namespace Services.MakeAnOrderServices
                 using (MemoryStream ms = new MemoryStream())
                 {
                     BinaryFormatter bf = new BinaryFormatter();
-                    bf.Serialize(ms, new Table(brojSlobodnogStola, brojGostiju, TableState.BUSY, orders));
+                    ITableRepository tdb = new TableRepository();
+                    Table t = tdb.GetByID(brojSlobodnogStola);
+                    t.OccupiedBy = WaiterID;
+                    t.TableOrders = orders;
+                    t.TableState = TableState.BUSY;
+                    t.Capacity = brojGostiju;
+                    t.TableNumber = brojSlobodnogStola;
+                    
+                    bf.Serialize(ms, t);
                     tableData = ms.ToArray();
                 }
 
@@ -112,7 +123,7 @@ namespace Services.MakeAnOrderServices
                 //Console.WriteLine($"\nSuccessfully sent orders and WaiterID: {WaiterID} to the server.");
 
                 iWaiterRepository.SetWaiterState(WaiterID, false);
-                Console.WriteLine($"\nWaiter {WaiterID} is not busy anymore");
+               
             }
             catch (SocketException ex)
             {

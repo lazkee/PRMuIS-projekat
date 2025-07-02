@@ -5,77 +5,61 @@ using System.Text;
 using Domain.Repositories.WaiterRepository;
 using Domain.Services;
 
+
 namespace Services.TakeATableServices
 {
     public class TakeATableClientService : ITakeATableClientService
     {
+        private readonly IMakeAnOrder _orderService;
+        private readonly IWaiterRepository _waiterRepo;
+        private readonly UdpClient _udpClient;
+        private readonly IPEndPoint _serverUdpEndpoint;
 
-        IMakeAnOrder iMakeAnOrderWaiterService;
-        IWaiterRepository iWaiterRepository;
-
-        public TakeATableClientService(IMakeAnOrder _iMakeAnOrderWaiterService, IWaiterRepository _iWaiterRepository)
+        public TakeATableClientService(
+            IMakeAnOrder orderService,
+            IWaiterRepository waiterRepo,
+            int _serverUdport)
         {
-            iMakeAnOrderWaiterService = _iMakeAnOrderWaiterService;
-            iWaiterRepository = _iWaiterRepository;
+            _orderService = orderService;
+            _waiterRepo = waiterRepo;
+            _udpClient = new UdpClient();
+            // Pretpostavljeni server UDP port za raspodelu stolova (npr. 4000)
+            _serverUdpEndpoint = new IPEndPoint(IPAddress.Loopback, _serverUdport);
         }
 
-        public void TakeATable(int WaiterID)
+        public void TakeATable(int waiterId, int numGuests)
         {
-
-            iWaiterRepository.SetWaiterState(WaiterID, true);
-
-            Console.WriteLine($"\nWaiter {WaiterID} is busy\n");
-
-            Socket clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-
-            IPEndPoint serverEp = new IPEndPoint(IPAddress.Loopback, 15001);
-
-            Console.Write("How many guests per table:");
-
-            string poruka = Console.ReadLine();
-            byte[] binarnaPoruka = Encoding.UTF8.GetBytes(poruka);
-
-            int.TryParse(poruka, out int broj_gostiju);
-
+            // 1) Pošalji UDP zahtev: "TAKE_TABLE;{waiterId};{numGuests}"
+            Console.WriteLine($"Usluzuje konobar #{waiterId}");
+            string request = $"TAKE_TABLE;{waiterId};{numGuests}";
+            byte[] reqBytes = Encoding.UTF8.GetBytes(request);
             try
             {
-                int brBajta = clientSocket.SendTo(binarnaPoruka, 0, binarnaPoruka.Length, SocketFlags.None, serverEp);
 
-                //Console.WriteLine($"Uspesno poslato {brBajta} bajta ka {serverEp}");
 
-                byte[] buffer = new byte[1024];
+                _udpClient.Send(reqBytes, reqBytes.Length, _serverUdpEndpoint);
 
-                EndPoint posiljaocEp = new IPEndPoint(IPAddress.Any, 0);
+                // 2) Prihvati odgovor UDP: "TABLE_FREE;{tableNumber}" ili "TABLE_BUSY"
+                IPEndPoint remoteEP = null;
+                byte[] respBytes = _udpClient.Receive(ref remoteEP);
+                string response = Encoding.UTF8.GetString(respBytes);
 
-                int brBajta1 = clientSocket.ReceiveFrom(buffer, ref posiljaocEp);
-
-                string poruka1 = Encoding.UTF8.GetString(buffer, 0, brBajta1);
-
-                //Console.WriteLine($"Stiglo je {brBajta1} od {posiljaocEp}, poruka: {poruka1}");
-
-                if (int.TryParse(poruka1, out int br1))
+                if (response.StartsWith("TABLE_FREE;"))
                 {
-                    if (br1 == 0)
-                    {
-                        Console.WriteLine("Trenutno nema slobodnih stolova!");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Sto broj {br1} je slobodan!");
-                        iMakeAnOrderWaiterService.MakeAnOrder(br1, broj_gostiju, WaiterID);
-                        //MakeAnOrder(br1, broj_gostiju);
-                    }
+                    int tableNum = int.Parse(response.Split(';')[1]);
+                    Console.WriteLine($"Gosti smjesteni za sto broj {tableNum}!");
+                    // 3) Pređi na poručivanje preko TCP
+                    _orderService.MakeAnOrder(tableNum, numGuests, waiterId);
                 }
-
-            }
-            catch (SocketException e)
+                else
+                {
+                    Console.WriteLine("Nema slobodnih odgovarajucih stolova.");
+                }
+            }catch(SocketException ex)
             {
-                Console.WriteLine
-                    (e.ToString());
+                Console.WriteLine($"Greska pri kontaktu sa serverp:{ex.Message}");
+                return;
             }
-
-            //Console.WriteLine("Table reserved!");
-            clientSocket.Close();
         }
     }
 }

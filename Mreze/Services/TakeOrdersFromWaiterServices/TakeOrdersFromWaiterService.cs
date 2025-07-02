@@ -92,7 +92,7 @@ namespace Services.TakeOrdersFromWaiterServices
                         //    Console.WriteLine(t);
                         //}
 
-                        _sendOrderForPreparation.SendOrder(waiterId, table.TableOrders);
+                       // _sendOrderForPreparation.SendOrder(table);
                     }
                     
                     

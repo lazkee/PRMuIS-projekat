@@ -1,55 +1,93 @@
-﻿using System.Collections.Generic;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace Domain.Repositories.WaiterRepository
 {
     public class WaiterRepository : IWaiterRepository
     {
-        private static Dictionary<int, bool> waiterStates = new Dictionary<int, bool>();
-        private static bool initialized = false;
-        //private IPEndPoint serverEndpoint;
-        //morace vrv da se uradi iskljucivost u ovom repozitorijumu
-        public WaiterRepository(int numberofWaiters)
+        // Thread‐safe skladišta stanja
+        private static readonly ConcurrentDictionary<int, bool> _waiterBusy
+            = new ConcurrentDictionary<int, bool>();
+        private static readonly ConcurrentDictionary<int, bool> _orderReady
+            = new ConcurrentDictionary<int, bool>();
+
+        // Ovaj flag sprečava višestruku inicijalizaciju
+        private static bool _initialized = false;
+        private static readonly object _lock = new object();
+
+        /// <summary>
+        /// numberOfWaiters očekuje maksimalni ID konobara (npr. 3 → IDs 1,2,3).
+        /// </summary>
+        public WaiterRepository(int numberOfWaiters)
         {
-            if (!initialized)
+            if (numberOfWaiters < 1)
+                throw new ArgumentException("Potrebno je bar 1 konobar.", nameof(numberOfWaiters));
+
+            // Inicijalizujemo samo prvi put
+            if (!_initialized)
             {
-                for (int i = 1; i <= numberofWaiters; ++i)
+                lock (_lock)
                 {
-                    //da bi krenulo od toga da prvi ima 1 a ne 0
-                    waiterStates[i] = false; //busy = false
+                    if (!_initialized)
+                    {
+                        for (int i = 1; i <= numberOfWaiters; i++)
+                        {
+                            _waiterBusy[i] = false;  // svi ispočetka FREE
+                            _orderReady[i] = false;  // nijednom nije spremna
+                        }
+                        _initialized = true;
+                    }
                 }
             }
         }
 
-        public void SetWaiterState(int waiterId, bool isBusy)
+        // --- IWaiterRepository: porudžbina spremna za nošenje ---
+        public bool HasOrderReady(int waiterId)
         {
-            waiterStates[waiterId] = isBusy;
-
+            ValidateId(waiterId);
+            return _orderReady[waiterId];
         }
 
-        /*private void NotifyServer(int waiterId, bool isBusy)
+        public void SetOrderReady(int waiterId)
         {
-            using (Socket clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp))
-            {
-                string message = $"{waiterId}:{(isBusy ? "busy" : "available")}";
-                byte[] messageBytes = Encoding.UTF8.GetBytes(message);
-                clientSocket.SendTo(messageBytes, serverEndpoint);
-            }
-        }*/
+            ValidateId(waiterId);
+            _orderReady[waiterId] = true;
+        }
 
+        public void ClearOrderReady(int waiterId)
+        {
+            ValidateId(waiterId);
+            _orderReady[waiterId] = false;
+        }
+
+        // --- Dodatne metode za stanje konobara (FREE/BUSY) ---
+        /// <summary>Je li konobar trenutno zauzet (true) ili slobodan (false)?</summary>
         public bool GetWaiterState(int waiterId)
         {
-            return waiterStates.TryGetValue(waiterId, out bool isBusy) && isBusy;
+            ValidateId(waiterId);
+            return _waiterBusy[waiterId];
         }
 
+        /// <summary>Postavi stanje konobara: true=zauzet, false=slobodan.</summary>
+        public void SetWaiterState(int waiterId, bool isBusy)
+        {
+            ValidateId(waiterId);
+            _waiterBusy[waiterId] = isBusy;
+        }
+
+        /// <summary>Sve trenutne parove (waiterId → busy) vraća kao novi rječnik.</summary>
         public Dictionary<int, bool> GetAllWaiterStates()
         {
-            return new Dictionary<int, bool>(waiterStates);
-
+            return new Dictionary<int, bool>(_waiterBusy);
         }
 
-
+        private void ValidateId(int waiterId)
+        {
+            if (!_waiterBusy.ContainsKey(waiterId))
+                throw new ArgumentOutOfRangeException(
+                    nameof(waiterId),
+                    $"ID konobara {waiterId} nije u opsegu 1..{_waiterBusy.Count}.");
+        }
     }
 }

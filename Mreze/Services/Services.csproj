@@ -60,6 +60,10 @@
       <Project>{2752d4e6-2198-4297-affe-7317a3ce74aa}</Project>
       <Name>Domain</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Infrastructure\Infrastructure.csproj">
+      <Project>{3a11c49f-e30d-4e6d-9ede-7fcb16d6dcba}</Project>
+      <Name>Infrastructure</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

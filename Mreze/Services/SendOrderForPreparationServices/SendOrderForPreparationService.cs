@@ -1,103 +1,131 @@
-﻿using System;
+﻿// Services/PrepareOrderServices/SendOrderForPreparationService.cs
+
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading;
-using Domain.Models;
-using Domain.Repositories.OrderRepository;
-using Services;  // za NotificationService
 using Domain.Enums;
+using Domain.Models;
+using Domain.Repositories;
 using Domain.Services;
-using Services.NotificationServices;
+using Domain.Repositories.OrderRepository;
 
 namespace Services.SendOrderForPreparationServices
 {
-    /// <summary>
-    /// Servis za dodelu porudžbina kuvarima i barmenima.
-    /// </summary>
     public class SendOrderForPreparationService : ISendOrderForPreparation
     {
-        private readonly IOrderRepository _foodOrderRepository;
-        private readonly IOrderRepository _drinkOrderRepository;
-        private readonly NotificationService _notificationService;
+        private readonly IClientDirectory _directory;
+        private readonly IOrderRepository _foodRepo;
+        private readonly IOrderRepository _drinkRepo;
 
-        /// <summary>
-        /// Inicijalizuje repozitorijume i pokreće radne niti.
-        /// </summary>
-        /// <param name="numOfChefs">Broj kuvara.</param>
-        /// <param name="numOfBarmens">Broj barmena.</param>
-        /// <param name="notificationService">Servis za slanje notifikacija konobarima.</param>
         public SendOrderForPreparationService(
-            int numOfChefs,
-            int numOfBarmens,
-            NotificationService notificationService)
+            IClientDirectory directory,
+            IOrderRepository foodRepository,
+            IOrderRepository drinkRepository)
         {
-            _foodOrderRepository = new FoodOrderRepository();
-            _drinkOrderRepository = new DrinkOrderRepository();
-            _notificationService = notificationService;
+            _directory = directory;
+            _foodRepo = foodRepository;
+            _drinkRepo = drinkRepository;
 
-            // Pokretanje niti za kuvare
-            for (int i = 0; i < numOfChefs; i++)
+            // Startujemo niti za kuhare i barmene
+            new Thread(() => ProcessOrdersToStaff(_foodRepo, ClientType.Cook))
             {
-                new Thread(() => ProcessOrdersToStaff(_foodOrderRepository, ClientType.Cook))
-                { IsBackground = true }
-                    .Start();
-            }
+                IsBackground = true
+            }.Start();
 
-            // Pokretanje niti za barmene
-            for (int i = 0; i < numOfBarmens; i++)
+            new Thread(() => ProcessOrdersToStaff(_drinkRepo, ClientType.Bartender))
             {
-                new Thread(() => ProcessOrdersToStaff(_drinkOrderRepository, ClientType.Bartender))
-                { IsBackground = true }
-                    .Start();
-            }
+                IsBackground = true
+            }.Start();
         }
 
         /// <summary>
-        /// Prima porudžbinu od konobara i enqueue-uje u odgovarajući repozitorijum.
+        /// Enqueue-uje batch porudžbina za pripremu.
         /// </summary>
-        /// <param name="WaiterID">ID konobara.</param>
-        /// <param name="orders">Lista stavki porudžbine.</param>
-        public void SendOrder(int WaiterID, List<Order> orders)
+        public void SendOrder(int waiterId, int tableNumber, List<Order> orders)
         {
-            var food = new List<Order>();
-            var drinks = new List<Order>();
-
-            foreach (var order in orders)
+            // Dodajemo waiterId u svaki Order objekat
+            foreach (var o in orders)
             {
-                // Ubacujemo ID konobara u samu porudžbinu radi notifikacije
-                order._waiterId = WaiterID;
-
-                if (order.ArticleCategory == ArticleCategory.DRINK)
-                    drinks.Add(order);
-                else
-                    food.Add(order);
+                o._waiterId = waiterId;
+                o._tableNumber = tableNumber;
             }
 
-            if (food.Count > 0)
-                _foodOrderRepository.AddOrder(food);
-            if (drinks.Count > 0)
-                _drinkOrderRepository.AddOrder(drinks);
+            // Razvrstavamo po repozitorijumima
+            var foodBatch = orders.Where(o => o.ArticleCategory == ArticleCategory.FOOD).ToList();
+            if (foodBatch.Any())
+                _foodRepo.AddOrder(foodBatch);
+
+            var drinkBatch = orders.Where(o => o.ArticleCategory == ArticleCategory.DRINK).ToList();
+            if (drinkBatch.Any())
+                _drinkRepo.AddOrder(drinkBatch);
         }
 
         /// <summary>
-        /// Radna nit koja konzumira porudžbine iz repozitorijuma i simulira obradu.
+        /// Pozadinska nit: čeka batch porudžbina iz repozitorijuma
+        /// i šalje ih odgovarajućem tipu radnika putem TCP protokola.
         /// </summary>
         private void ProcessOrdersToStaff(IOrderRepository repository, ClientType workerType)
         {
+            Console.WriteLine($"[SERVER] Pokrećem dispatch thread za {workerType}");
+            int nextClient = 0;
+
             while (true)
             {
-                // Uklanja sledeću porudžbinu iz reda (blokira ako je prazan)
-                var batch = repository.RemoveOrder();
-                foreach (var order in batch)
-                {
-                    Console.WriteLine($"{workerType} preuzima porudžbinu: Sto={order._tableNumber}, Artikal={order._articleName}");
-                    // Simulacija vremena pripreme
-                    Thread.Sleep(2000);
-                    Console.WriteLine($"{workerType} završio porudžbinu: Sto={order._tableNumber}, Artikal={order._articleName}");
+                // 1) Preuzmi batch porudžbina (blokira dok repozitorijum ne sadrži ništa)
+                var batch = repository.RemoveOrder();   // List<Order>
+                if (batch == null || batch.Count == 0) continue;
 
-                    // Obaveštavamo server/konobara da je porudžbina gotova
-                    _notificationService.NotifyOrderReady(order._tableNumber, order._waiterId);
+
+
+
+
+
+                // 2) Pripremi jedinstvenu poruku: uzmemo tableNumber i waiterId iz prve stavke
+                int tableNo = batch[0]._tableNumber;    // već popunjeno
+                int waiterId = batch[0]._waiterId;       // već popunjeno
+
+
+
+                // 3) Sastavi sadržaj batch-a kao niz imena, npr. "Karadjordjeva,Karadjordjeva,Burek"
+                string content = string.Join(",", batch.Select(o => o._articleName));
+
+                Console.WriteLine(
+                    $"[SERVER] Dispatchujem cele porudžbine za sto {tableNo} " +
+                    $"(konobar {waiterId}): {content}");
+
+                // 4) Učitaj najnoviju listu registrovanih radnika
+                var clients = _directory.GetByType(workerType).ToList();
+                if (!clients.Any())
+                {
+                    Console.WriteLine($"[WARN] Nema registrovanih {workerType}-a za pripremu.");
+                    Thread.Sleep(500);
+                    continue;
+                }
+
+                // 5) Round-robin ili uvek istog radnika
+                var clientInfo = clients[nextClient];
+                nextClient = (nextClient + 1) % clients.Count;
+
+                // 6) Pošalji **jednu** PREPARE poruku sa kompletom batch-a
+                //    Format: PREPARE;{tableNo};{waiterId};{content}\n
+                string msg = $"PREPARE;{tableNo};{waiterId};{content}\n";
+                byte[] data = Encoding.UTF8.GetBytes(msg);
+
+                try
+                {
+                    clientInfo.Socket.GetStream().Write(data, 0, data.Length);
+                    Console.WriteLine(
+                        $"[SERVER] Poslato {workerType}#{clientInfo.Id}: {msg.Trim()}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(
+                        $"[ERROR] Neuspelo slanje {workerType}#{clientInfo.Id}: {ex.Message}");
                 }
             }
         }
+
     }
 }

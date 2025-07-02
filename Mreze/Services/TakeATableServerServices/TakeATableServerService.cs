@@ -1,90 +1,60 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using Domain.Models;
 using Domain.Services;
+using Domain.Enums;
 
 namespace Services.TakeATableServices
 {
     public class TakeATableServerService : ITakeATableServerService
     {
-        IReadService _readTablesService;
+        private readonly IReadService _readService;
+        private readonly UdpClient _udpServer;
 
-        public TakeATableServerService(IReadService irs)
+        public TakeATableServerService(IReadService readService, int listenPort = 4000)
         {
-            _readTablesService = irs;
+            _readService = readService;
+            _udpServer = new UdpClient(listenPort);
+            Console.WriteLine($"UDP TableListener pokrenut na portu {listenPort}.");
         }
 
         public void TakeATable()
         {
-            Socket serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            IPEndPoint serverEP = new IPEndPoint(IPAddress.Any, 15001);
-            serverSocket.Bind(serverEP);
-
-            serverSocket.Blocking = false;
-
-            EndPoint posiljaocEp = new IPEndPoint(IPAddress.Any, 0);
-            byte[] buffer = new byte[1024];
-
+            var remoteEP = new IPEndPoint(IPAddress.Any, 0);
 
             while (true)
             {
-                List<Socket> readSockets = new List<Socket> { serverSocket };
-
-                Socket.Select(readSockets, null, null, 5000000);
-
-                if (readSockets.Count > 0)
+                // 1) Čitanje zahteva
+                var data = _udpServer.Receive(ref remoteEP);
+                var msg  = Encoding.UTF8.GetString(data);
+                // ocekivani format: TAKE_TABLE;{waiterId};{numGuests}
+                var parts = msg.Split(';');
+                int waiterId  = int.Parse(parts[1]);
+                int numGuests = int.Parse(parts[2]);
+                // 2) Provera maksimalnog kapaciteta stola
+                string reply;
+                if (numGuests <= 10)
                 {
-                    try
+                    // 2.1) Provera slobodnog stola
+                    int freeTable = _readService.GetFreeTableFor(numGuests);
+                    
+                    if (freeTable >= 0)
                     {
-
-                        int bytesReceived = serverSocket.ReceiveFrom(buffer, ref posiljaocEp);
-                        string message = Encoding.UTF8.GetString(buffer, 0, bytesReceived);
-
-                        //Console.WriteLine($"Received message: {message} from {posiljaocEp}");
-
-                        if (int.TryParse(message, out int numberOfGuests))
-                        {
-                            //Console.WriteLine($"Parsed number of guests: {numberOfGuests}");
-                        }
-
-                        IEnumerable<Table> tables = _readTablesService.GetAllTables();
-                        foreach (Table table in tables)
-                        {
-                            if (table.TableState == TableState.FREE)
-                            {
-
-                                string response = table.TableNumber.ToString();
-                                byte[] responseBytes = Encoding.UTF8.GetBytes(response);
-                                serverSocket.SendTo(responseBytes, posiljaocEp);
-
-                                table.NumberOfGuests = numberOfGuests;
-                                table.TableState = TableState.BUSY;
-
-                                break;
-                            }
-                            else if (table.TableNumber == 15)
-                            {
-                                string response = "0";
-                                byte[] responseBytes = Encoding.UTF8.GetBytes(response);
-                                serverSocket.SendTo(responseBytes, posiljaocEp);
-                            }
-                        }
+                        reply = $"TABLE_FREE;{freeTable}";
+                        // Obelezi sto kao zauzet
+                        _readService.OccupyTable(freeTable, waiterId);
                     }
-                    catch (SocketException ex)
+                    else
                     {
-                        Console.WriteLine($"Error receiving message: {ex.Message}");
+                        reply = "TABLE_BUSY";
                     }
-                }
-                else
-                {
-
-                    //Console.WriteLine("Waiting for data...");
-                }
+                } else { reply = "TABLE_BUSY"; }
+                // 3) Slanje odgovora
+                var outData = Encoding.UTF8.GetBytes(reply);
+                _udpServer.Send(outData, outData.Length, remoteEP);
+                Console.WriteLine($"Odgovor klijentu {remoteEP.Address}:{remoteEP.Port} → {reply}");
             }
         }
-
     }
 }

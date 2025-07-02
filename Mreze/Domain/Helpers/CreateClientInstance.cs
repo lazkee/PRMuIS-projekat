@@ -75,12 +75,12 @@ namespace Server
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = clientPath,
-                    Arguments = $"{clientId} {brojKlijenata} {port}",
+                    Arguments = $"{clientId} {i+1} {port}",
                     WorkingDirectory = workingDir,
                     UseShellExecute = true
                 };
                 Process.Start(startInfo);
-                Console.WriteLine($"Pokrenut klijent #{i + 1} kao {tipKlijenta} na portu {port}");
+                Console.WriteLine($"Pokrenut klijent #{clientId} kao {tipKlijenta} na portu {port}");
             }
         }
     }

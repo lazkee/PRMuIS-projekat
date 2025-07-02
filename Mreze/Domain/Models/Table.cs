@@ -7,8 +7,10 @@ namespace Domain.Models
     [Serializable]
     public class Table
     {
-        private int _tableNumber, _numberOfGuests;
+        private int _tableNumber;
         private TableState _tableState;
+        private int _occupiedBy;
+        private int _capacity;
 
         private List<Order> _orders = new List<Order>();
 
@@ -18,24 +20,35 @@ namespace Domain.Models
             set { _tableNumber = value; }
         }
 
-        public int NumberOfGuests
-        {
-            get { return _numberOfGuests; }
-            set { _numberOfGuests = value; }
-        }
+        
 
         public TableState TableState
         {
             get { return _tableState; }
             set { _tableState = value; }
         }
+       
 
-        public Table(int tableNumber, int numberOfGuests, TableState tableState, List<Order> orders)
+        public int OccupiedBy{
+            get{return _occupiedBy;}
+            set { _occupiedBy = value; }
+        }
+        public int Capacity
+        {
+            get { return _capacity; }
+            set { _capacity = value; } 
+        }
+
+
+        public Table(int tableNumber, int numberOfGuests, TableState tableState,List<Order> orders)
         {
             _tableNumber = tableNumber;
-            _numberOfGuests = numberOfGuests;
+            _capacity = numberOfGuests;
             _tableState = tableState;
             _orders = orders;
+            
+           
+
         }
         public List<Order> TableOrders
         {
@@ -47,7 +60,7 @@ namespace Domain.Models
         {
             string ret = "\n------------------------------------------------------------------\n";
             ret += "|    Table number    |    Number of guests    |    Table state   |\n";
-            ret += $"|    {_tableNumber,-12}    |    {_numberOfGuests,-16}    |    {_tableState,-11}   |\n";
+            ret += $"|    {_tableNumber,-12}    |    {_capacity,-16}    |    {_tableState,-11}   |\n";
             ret += "------------------------------------------------------------------\n";
             ret += "|\t\t\t     ORDERS\t\t\t\t |\n";
             ret += "------------------------------------------------------------------\n";

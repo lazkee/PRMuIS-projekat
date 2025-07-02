@@ -10,11 +10,11 @@ namespace Domain.Repositories.OrderRepository
 {
     public class FoodOrderRepository : IOrderRepository
     {
-        private static BlockingCollection<List<Order>> _foodOrders = new BlockingCollection<List<Order>>();
-
+      
+        private static readonly BlockingCollection<List<Order>> _foodOrders =new BlockingCollection<List<Order>>();
         public void AddOrder(List<Order> order)
         {
-            _foodOrders.Append(order);
+            _foodOrders.Add(order);
         }
 
         public BlockingCollection<List<Order>> GetAllOrders()
@@ -24,8 +24,8 @@ namespace Domain.Repositories.OrderRepository
 
         public List<Order> RemoveOrder()
         {
-            var queue = new BlockingCollection<List<Order>>(new ConcurrentQueue<List<Order>>());
-            return queue.Take(); // Uklanja sa početka reda
+            
+            return _foodOrders.Take(); // Uklanja sa početka reda
         }
     }
 }

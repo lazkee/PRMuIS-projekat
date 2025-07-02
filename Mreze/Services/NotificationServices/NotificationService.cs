@@ -22,7 +22,7 @@ namespace Services.NotificationServices
             var waiter = _directory.GetById(waiterId);
             if (waiter != null)
             {
-                var msg = $"Porudzbina za sto {tableId} je gotova\n";
+                var msg = $"READY;{tableId};{waiterId}\n";
                 var data = Encoding.UTF8.GetBytes(msg);
                 waiter.Socket.GetStream().Write(data, 0, data.Length);
             }

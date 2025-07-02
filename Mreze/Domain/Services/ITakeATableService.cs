@@ -3,7 +3,7 @@
     public interface ITakeATableClientService
     {
 
-        void TakeATable(int WaiterId);
+        void TakeATable(int WaiterId, int numOfGuest);
 
     }
 }

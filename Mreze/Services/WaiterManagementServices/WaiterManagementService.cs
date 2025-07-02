@@ -1,48 +1,73 @@
-﻿using System;
+﻿using Domain.Repositories.WaiterRepository;
 using Domain.Services;
+using System;
+using System.Threading;
 
-namespace Services.WaiterManagementServices
-{
+namespace Services.WaiterManagementServices {
     public class WaiterManagementService : IWaiterManagementService
     {
-        ITakeATableClientService iTakeATableClientService;
+        private readonly ITakeATableClientService _takeTableService;
+        private readonly IWaiterRepository _waiterRepo;
 
-        public WaiterManagementService(ITakeATableClientService _iTakeATableClientService)
+        public WaiterManagementService(
+            ITakeATableClientService takeTableService,
+            IWaiterRepository waiterRepo)
         {
-            iTakeATableClientService = _iTakeATableClientService;
+            _takeTableService = takeTableService
+                ?? throw new ArgumentNullException(nameof(takeTableService));
+            _waiterRepo = waiterRepo
+                ?? throw new ArgumentNullException(nameof(waiterRepo));
         }
 
-        public void WaiterIsServing(int WaiterID)
+        public void WaiterIsServing(int waiterId)
         {
-            bool slobodan = true;
-            while (slobodan)
+            while (!_waiterRepo.HasOrderReady(waiterId))
             {
-
-                Console.WriteLine("\n1. Take a new table:");
+                Console.WriteLine("1. Take a new table:");
                 Console.WriteLine("0. Close the waiter");
                 Console.Write("Your instruction: ");
-                string instruction = Console.ReadLine();
+                var key = Console.ReadLine();
 
-                if (int.TryParse(instruction, out int br))
+                if (key == "1")
                 {
-                    switch (br)
+                    // 1) Obeleži konobara kao zauzetog
+                    _waiterRepo.SetWaiterState(waiterId, true);
+
+                    // 2) Uzmi broj gostiju i pošalji zahtev
+                    Console.Write("How many guests per table: ");
+                    if (!int.TryParse(Console.ReadLine(), out var numGuests))
                     {
-
-                        case 0:
-                            break;
-                        //treba taj konobar da se ugasi i izbaci iz svega gde se nalazi, pa ako nema vise konobara da se zavrsi aplikacija
-                        //opet ne znam kako bih drugacije ugasio aplikaciju
-                        case 1:
-                            iTakeATableClientService.TakeATable(WaiterID);
-                            break;
-
+                        Console.WriteLine("Unesi validan broj gostiju.");
+                        _waiterRepo.SetWaiterState(waiterId, false);
+                        continue;
                     }
+
+                    _takeTableService.TakeATable(waiterId, numGuests);
+
+                    //// 3) Čekamo da stigne READY zastavica
+                    //Console.WriteLine("Čekam da porudzbina bude spremna...");
+                    //while (!_waiterRepo.HasOrderReady(waiterId))
+                    //{
+                    //    Thread.Sleep(200);
+                    //}
+
+                    //// 4) Simulacija nošenja
+                    //Console.WriteLine("Porudzbina je spremna! Nosim je…");
+                    //Thread.Sleep(1500);
+
+                    //// 5) Reset zastavice i označi konobara slobodnim
+                    //_waiterRepo.ClearOrderReady(waiterId);
+                    //_waiterRepo.SetWaiterState(waiterId, false);
+                }
+                else if (key == "0")
+                {
+                    Console.WriteLine("Zatvaram konobara…");
+                    break;
                 }
                 else
                 {
-                    Console.WriteLine("You should enter 0 or 1!");
+                    Console.WriteLine("Unesi 0 ili 1!");
                 }
-
             }
         }
     }
