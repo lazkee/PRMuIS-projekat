@@ -70,7 +70,7 @@ namespace Services.ManagementServices
                                 continue;
                             }
 
-
+                            //odavde se salje preko udp na 4002 serveru da su gosti stigli za stol
 
                         }
                         else if (key.Equals("0"))

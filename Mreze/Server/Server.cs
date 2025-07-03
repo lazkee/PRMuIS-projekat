@@ -47,12 +47,16 @@ namespace Server
             new Thread(tableService.TakeATable) { IsBackground = true }.Start();
             Console.WriteLine("[Server] UDP TableListener pokrenut na portu 4000.");
 
-            // 3.11) UDP listener za otkazivanje rezervacija koje su istekle na portu 4001  NOVOOOOOOOOOOOOOOOOOOOOO
+            // 3.11) UDP listener za otkazivanje rezervacija koje su istekle na portu 4001 (menadzer salje serveru da je rezervacija otkazana - istekla, ako u roku od 10 sekundi ne dodju gosti)
 
             var releaseATableService = new ReleaseATableServerService(readService, 4001);
             releaseATableService.ReleaseATable();   //Listener thread se nalazi u servisu (ne pravi se u Serveru). Nema neke razlike ali ovako je mozda cistije
             //I da napravimo jos 2 servisa za ove dole TCP sto su nam static
             Console.WriteLine("[Server] UDP TableCancelationListener pokrenut na portu 4001.");
+
+            // 3.12) bice UDP listener za goste koji su stigli sa rezervacijom na portu 4002 (menadzer salje serveru da su stigli)
+
+
 
             // 3.2) TCP listener za porudžbine na portu 15000
             new Thread(() => StartOrderListener(prepService, tcpPort: 15000)) { IsBackground = true }
