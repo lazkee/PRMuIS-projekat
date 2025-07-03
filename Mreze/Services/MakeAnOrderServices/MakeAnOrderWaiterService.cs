@@ -12,10 +12,10 @@ using Domain.Services;
 
 namespace Services.MakeAnOrderServices
 {
-    public class MakeAnOrderWaiterService : IMakeAnOrder
+    public class MakeAnOrderManagerService : IMakeAnOrder
     {
         IWaiterRepository iWaiterRepository;
-        public MakeAnOrderWaiterService(IWaiterRepository _iWaiterRepository)
+        public MakeAnOrderManagerService(IWaiterRepository _iWaiterRepository)
         {
             iWaiterRepository = _iWaiterRepository;
         }

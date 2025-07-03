@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Domain.Models;
 using Domain.Repositories.TableRepository;
@@ -32,6 +33,17 @@ namespace Services.ServerServices
                 table.OccupiedBy = waiterId;
             }
         }
+
+        public void ReleaseTable(int tableNumber)
+        {
+            var table = tables.GetAllTables().FirstOrDefault(t => t.TableNumber == tableNumber);
+            if(table != null)
+            {
+                table.TableState = TableState.FREE;
+                Console.WriteLine($"Table {tableNumber} is {table.TableState}");
+            }
+        }
+
     }
 }
 

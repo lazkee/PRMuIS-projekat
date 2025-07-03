@@ -39,6 +39,7 @@ namespace Domain.Repositories.WaiterRepository
                         _initialized = true;
                     }
                 }
+                Console.WriteLine($"Repo created in process {System.Diagnostics.Process.GetCurrentProcess().Id}");
             }
         }
 

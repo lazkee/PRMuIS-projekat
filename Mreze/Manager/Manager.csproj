@@ -1,19 +1,20 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{16DFB64D-D3A0-418D-95E1-98C4012A5706}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Services</RootNamespace>
-    <AssemblyName>Services</AssemblyName>
+    <ProjectGuid>{DDAFCE36-3CE0-464B-87BE-54FC672CF684}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Manager</RootNamespace>
+    <AssemblyName>Manager</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -23,6 +24,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -41,33 +43,21 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MakeAnOrderServices\MakeAnOrderWaiterService.cs" />
-    <Compile Include="ManagementServices\ManagerManagementService.cs" />
-    <Compile Include="NotificationServices\NotificationService.cs" />
-    <Compile Include="OrderManagementService\DrinkOrderManagementService.cs" />
-    <Compile Include="OrderManagementService\FoodOrderManagementService.cs" />
-    <Compile Include="PrepareOrderServices\PrepareDrinkService.cs" />
-    <Compile Include="PrepareOrderServices\PrepareFoodService.cs" />
-    <Compile Include="ReleaseATableServices\ReleaseATableManagerService.cs" />
-    <Compile Include="ReleaseATableServices\ReleaseATableServerService.cs" />
-    <Compile Include="SendOrderForPreparationServices\SendOrderForPreparationService.cs" />
-    <Compile Include="ServerServices\ServerReadTablesService.cs" />
-    <Compile Include="TakeATableClientServices\TakeATableClientService.cs" />
-    <Compile Include="TakeATableServerServices\TakeATableServerService.cs" />
+    <Compile Include="Manager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TakeOrdersFromWaiterServices\TakeOrdersFromWaiterService.cs" />
-    <Compile Include="ManagementServices\WaiterManagementService.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Domain\Domain.csproj">
-      <Project>{2752d4e6-2198-4297-affe-7317a3ce74aa}</Project>
+      <Project>{2752D4E6-2198-4297-AFFE-7317A3CE74AA}</Project>
       <Name>Domain</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Infrastructure\Infrastructure.csproj">
-      <Project>{3a11c49f-e30d-4e6d-9ede-7fcb16d6dcba}</Project>
-      <Name>Infrastructure</Name>
+    <ProjectReference Include="..\Services\Services.csproj">
+      <Project>{16dfb64d-d3a0-418d-95e1-98c4012a5706}</Project>
+      <Name>Services</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

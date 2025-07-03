@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using Domain.Repositories.WaiterRepository;
+using Domain.Repositories.ManagerRepository;
 using Services.MakeAnOrderServices;
 using Services.TakeATableServices;
 using Services.WaiterManagementServices;
@@ -24,7 +25,7 @@ namespace Client
 
             // 2) Inicijalizacija repozitorijuma i servisa
             var waiterRepo = new WaiterRepository(numberOfWaiters);
-            var orderService = new MakeAnOrderWaiterService(waiterRepo);
+            var orderService = new MakeAnOrderManagerService(waiterRepo);
             // ZA SERVER: on sluša UDP na portu 4000
             const int serverUdpPort = 4000;
             var tableService = new TakeATableClientService(orderService, waiterRepo, serverUdpPort);
@@ -56,9 +57,9 @@ namespace Client
 
                         // signaliziraj menadžeru da je porudžbina spremna
                         waiterRepo.SetOrderReady(wId);
-                        Console.WriteLine($"Porudzbina za sto {tableNum}je spremna! Nosim je…");
+                        Console.WriteLine($"\nPorudzbina za sto {tableNum} je spremna! Nosim je…");
                         Thread.Sleep(1500);
-                        Console.WriteLine("Porudzbina odnesena!");
+                        Console.WriteLine("Porudzbina odnesena!\n");
                         waiterRepo.ClearOrderReady(wId);
 
                     }
@@ -67,7 +68,8 @@ namespace Client
             { IsBackground = true }.Start();
 
             // 4) Pokreni glavni meni konobara
-            waiterMgmt.WaiterIsServing(waiterId);
+            //waiterMgmt.WaiterIsServing(waiterId);
+            waiterMgmt.TakeOrReserveATable(waiterId, Domain.Enums.ClientType.Waiter);
         }
     }
 }

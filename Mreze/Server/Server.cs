@@ -12,6 +12,7 @@ using Domain.Repositories.OrderRepository;
 using Domain.Services;
 using Infrastructure.Networking;
 using Services.NotificationServices;
+using Services.ReleaseATableServices;
 using Services.SendOrderForPreparationServices;
 using Services.ServerServices;
 using Services.TakeATableServices;
@@ -38,12 +39,20 @@ namespace Server
             createClientInstance.BrojITipKlijenta(2, ClientType.Waiter);
             createClientInstance.BrojITipKlijenta(1, ClientType.Cook);
             createClientInstance.BrojITipKlijenta(1, ClientType.Bartender);
+            createClientInstance.BrojITipKlijenta(1, ClientType.Manager);
 
             // 3.1) UDP listener za raspodelu stolova
             var readService = new ServerReadTablesService();
             var tableService = new TakeATableServerService(readService, listenPort: 4000);
             new Thread(tableService.TakeATable) { IsBackground = true }.Start();
             Console.WriteLine("[Server] UDP TableListener pokrenut na portu 4000.");
+
+            // 3.11) UDP listener za otkazivanje rezervacija koje su istekle na portu 4001  NOVOOOOOOOOOOOOOOOOOOOOO
+
+            var releaseATableService = new ReleaseATableServerService(readService, 4001);
+            releaseATableService.ReleaseATable();   //Listener thread se nalazi u servisu (ne pravi se u Serveru). Nema neke razlike ali ovako je mozda cistije
+            //I da napravimo jos 2 servisa za ove dole TCP sto su nam static
+            Console.WriteLine("[Server] UDP TableCancelationListener pokrenut na portu 4001.");
 
             // 3.2) TCP listener za porudžbine na portu 15000
             new Thread(() => StartOrderListener(prepService, tcpPort: 15000)) { IsBackground = true }
@@ -238,5 +247,6 @@ namespace Server
             }
             return buf;
         }
+
     }
 }

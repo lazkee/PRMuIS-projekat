@@ -7,7 +7,7 @@ namespace Domain.Services
     {
         IEnumerable<Table> GetAllTables();
         int GetFreeTableFor(int numGuests);
-
         void OccupyTable(int tableNumber, int waiterId);
+        void ReleaseTable(int tableNumber);
     }
 }

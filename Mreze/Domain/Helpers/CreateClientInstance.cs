@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using Domain.Enums;
+using Domain.Repositories.ManagerRepository;
 using Domain.Repositories.WaiterRepository;
 
 namespace Server
@@ -12,6 +13,7 @@ namespace Server
     public class CreateClientInstance
     {
         private IWaiterRepository waiterRepository;
+        private IManagerRepository managerRepository;
         private int _nextPort = 6000;       // globalni port koji se inkrementira
         private int _nextClientId = 1;
 
@@ -27,8 +29,10 @@ namespace Server
 
             if (tipKlijenta == ClientType.Waiter)
             {
-                // Inicijalizacija repozitorijuma za praćenje stanja konobara
                 waiterRepository = new WaiterRepository(brojKlijenata);
+            }
+            else if (tipKlijenta == ClientType.Manager) {
+                managerRepository = new ManagerRepository(brojKlijenata);
             }
         }
 
@@ -54,6 +58,10 @@ namespace Server
                 case ClientType.Bartender:
                     clientPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
                         "..", "..", "..", "Barmen", "bin", "Debug", "Barmen.exe");
+                    break;
+                case ClientType.Manager:
+                    clientPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+                        "..", "..", "..", "Manager", "bin", "Debug", "Manager.exe");
                     break;
                 default:
                     throw new ArgumentException($"Nepoznat tip klijenta: {tipKlijenta}", nameof(tipKlijenta));
