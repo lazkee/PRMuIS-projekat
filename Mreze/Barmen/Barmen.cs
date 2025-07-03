@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -10,60 +11,76 @@ namespace Barmen
     {
         static void Main(string[] args)
         {
-            int bartenderId = int.Parse(args[0]);
-            int udpPort = int.Parse(args[1]);
-            const string serverAddress = "127.0.0.1";
-            const int tcpPort = 5000;
-
-            Console.WriteLine($"Barmen number #{args[1]},");
-            Console.WriteLine($"clientId #{args[0]}");
-            Console.WriteLine($"Port #{args[2]},");
-
-
-            try
+            if (args.Length < 3)
             {
-                // Otvaranje TCP konekcije za registraciju i pripremu poruka
-                using (var client = new TcpClient(serverAddress, tcpPort))
-                using (var stream = client.GetStream())
-                using (var reader = new StreamReader(stream, Encoding.UTF8))
-                using (var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true })
+                Console.WriteLine("Upotreba: Barmen <ClientId> <Count> <UdpPort>");
+                return;
+            }
+
+            int barmenId = int.Parse(args[0]);
+            int count = int.Parse(args[1]);
+            int udpPort = int.Parse(args[2]);
+
+            Console.WriteLine($"Barmen number #{count}, clientId #{barmenId}, sluša UDP port #{udpPort}");
+
+            const string serverIp = "127.0.0.1";
+            const int serverPort = 5000; // TCP port za REGISTER i READY
+
+            // 1) Otvaramo TCP vezu za REGISTER i kasnije slanje READY
+            var tcp = new TcpClient(serverIp, serverPort);
+            var stream = tcp.GetStream();
+            var reader = new StreamReader(stream, Encoding.UTF8);
+            var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+
+            // 2) Registracija kod servera, šaljemo i svoj UDP port
+            writer.WriteLine($"REGISTER;{barmenId};Bartender;{udpPort}");
+            var resp = reader.ReadLine();
+            if (resp != "REGISTERED")
+            {
+                Console.WriteLine("Registracija nije uspela, izlazim.");
+                return;
+            }
+            Console.WriteLine("Barmen je uspešno registrovan na server.");
+
+            // 3) Pokrećemo UDP listener za PREPARE poruke
+            var udpClient = new UdpClient(udpPort);
+            var remoteEP = new IPEndPoint(IPAddress.Any, 0);
+
+            Console.WriteLine($"Čekam PREPARE poruke na UDP portu {udpPort}...");
+            while (true)
+            {
+                try
                 {
-                    // Registracija na server
-                    writer.WriteLine($"REGISTER;{bartenderId};Bartender;{udpPort}");
-                    var response = reader.ReadLine();
-                    if (response != "REGISTERED")
-                    {
-                        Console.WriteLine("Registracija neuspešna.");
-                        return;
-                    }
+                    // Primamo celu UDP datagramu
+                    var data = udpClient.Receive(ref remoteEP);
+                    var msg = Encoding.UTF8.GetString(data).Trim();
 
-                    Console.WriteLine("Čekam narudžbine...");
-                    string line;
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        if (!line.StartsWith("PREPARE;"))
-                            continue;
+                    if (!msg.StartsWith("PREPARE;"))
+                        continue;
 
-                        // Format: PREPARE;{tableNumber};{itemName}
-                        var parts = line.Split(new[] { ';' }, 4);
-                        int tableNo = int.Parse(parts[1]);
-                        int waiter = int.Parse(parts[2]);
-                        string items = parts[3];
+                    // Parsiramo "PREPARE;{tableNo};{waiterId};{items}"
+                    var parts = msg.Split(new[] { ';' }, 4);
+                    int tableNo = int.Parse(parts[1]);
+                    int waiter = int.Parse(parts[2]);
+                    string items = parts[3];
 
-                        Console.WriteLine($"NOVA PORUDŽBINA: sto #{tableNo}, artikli: {items}");
-                        // Simulacija pripreme
-                        Thread.Sleep(1500);
-                        Console.WriteLine($"ZAVRŠENO: sto #{tableNo},Konobar #{waiter} ,artikli: {items}");
+                    Console.WriteLine($"[UDP] Porudžbina za sto {tableNo} od konobara {waiter}: {items}");
 
-                        // Notifikacija serveru da je narudžbina spremna
-                        writer.WriteLine($"READY;{tableNo};{waiter}");
-                    }
+                    // Simulacija pripreme
+                    Thread.Sleep(1500);
+                    Console.WriteLine($"[Barmen] Završio pripremu za sto {tableNo}");
+
+                    // 4) Javljamo serveru preko TCP da smo spremni
+                    writer.WriteLine($"READY;{tableNo};{waiter}");
+                    Console.WriteLine($"[TCP] Poslato READY;{tableNo};{waiter}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ERROR] UDP listener: {ex.Message}");
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Greška u Barmen: {ex.Message}");
-            }
+
+            // Napomena: ne zatvaramo udpClient/tcp ovde jer petlja traje dokle traje aplikacija
         }
     }
 }

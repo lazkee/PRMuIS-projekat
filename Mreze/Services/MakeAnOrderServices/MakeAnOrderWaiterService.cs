@@ -12,10 +12,12 @@ using Domain.Services;
 
 namespace Services.MakeAnOrderServices
 {
-    public class MakeAnOrderManagerService : IMakeAnOrder
+    public class MakeAnOrderWaiterService : IMakeAnOrder
     {
         IWaiterRepository iWaiterRepository;
-        public MakeAnOrderManagerService(IWaiterRepository _iWaiterRepository)
+        const int serverOrderPort = 15000;
+        UdpClient udpOrderClient = new UdpClient(); 
+        public MakeAnOrderWaiterService(IWaiterRepository _iWaiterRepository)
         {
             iWaiterRepository = _iWaiterRepository;
         }
@@ -32,8 +34,8 @@ namespace Services.MakeAnOrderServices
 
         public void MakeAnOrder(int brojSlobodnogStola, int brojGostiju, int WaiterID)
         {
-            Socket clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            IPEndPoint serverEp = new IPEndPoint(IPAddress.Loopback, 15000);
+            //Socket clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            //IPEndPoint serverEp = new IPEndPoint(IPAddress.Loopback, 15000);
 
             try
             {
@@ -102,7 +104,7 @@ namespace Services.MakeAnOrderServices
                 {
                     Console.WriteLine(order);
                 }
-                clientSocket.Connect(serverEp);
+                //clientSocket.Connect(serverEp);
                 byte[] tableData;
                 using (MemoryStream ms = new MemoryStream())
                 {
@@ -119,13 +121,17 @@ namespace Services.MakeAnOrderServices
                     tableData = ms.ToArray();
                 }
 
-                byte[] waiterIdData = new byte[4];
-                waiterIdData = Encoding.UTF8.GetBytes(WaiterID.ToString());
-                SendMessage(clientSocket, waiterIdData);
+                //byte[] waiterIdData = new byte[4];
+                //waiterIdData = Encoding.UTF8.GetBytes(WaiterID.ToString());
+                //SendMessage(clientSocket, waiterIdData);
 
 
-                SendMessage(clientSocket, tableData);
-
+                //SendMessage(clientSocket, tableData);
+                string base64msg = Convert.ToBase64String(tableData);
+                string message = $"ORDER;{WaiterID};{brojSlobodnogStola};{base64msg}\n";
+                var bytes = Encoding.UTF8.GetBytes(message);
+                udpOrderClient.Send(bytes, bytes.Length, "127.0.0.1", serverOrderPort);
+                Console.WriteLine($"[Waiter] Poslato UDP ORDER: Konobar #{WaiterID}, Broj stola #{brojSlobodnogStola}, Broj artikala:{orders.Count}");
 
 
                 //Console.WriteLine($"\nSuccessfully sent orders and WaiterID: {WaiterID} to the server.");
@@ -143,7 +149,7 @@ namespace Services.MakeAnOrderServices
             }
             finally
             {
-                clientSocket.Close();
+                //udpOrderClient.Close();
             }
         }
 

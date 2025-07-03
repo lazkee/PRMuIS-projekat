@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using Domain.Enums;
@@ -18,6 +19,8 @@ namespace Services.SendOrderForPreparationServices
         private readonly IClientDirectory _directory;
         private readonly IOrderRepository _foodRepo;
         private readonly IOrderRepository _drinkRepo;
+
+        private readonly UdpClient _udp = new UdpClient();
 
         public SendOrderForPreparationService(
             IClientDirectory directory,
@@ -115,7 +118,8 @@ namespace Services.SendOrderForPreparationServices
 
                 try
                 {
-                    clientInfo.Socket.GetStream().Write(data, 0, data.Length);
+                    //clientInfo.Socket.GetStream().Write(data, 0, data.Length); //ukoliko bi se slalo tcp protokolom
+                    _udp.Send(data, data.Length, clientInfo.UdpEndpoint);
                     Console.WriteLine(
                         $"[SERVER] Poslato {workerType}#{clientInfo.Id}: {msg.Trim()}");
                 }

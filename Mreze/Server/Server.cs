@@ -59,15 +59,18 @@ namespace Server
 
 
             // 3.2) TCP listener za porudžbine na portu 15000
-            new Thread(() => StartOrderListener(prepService, tcpPort: 15000)) { IsBackground = true }
-                .Start();
-            Console.WriteLine("[Server] TCP OrderListener pokrenut na portu 15000.");
+            //new Thread(() => StartOrderListener(prepService, tcpPort: 15000)) { IsBackground = true }
+            //    .Start();
+            //Console.WriteLine("[Server] TCP OrderListener pokrenut na portu 15000.");
+            new Thread(() => StartOrderListenerUdp(prepService,  15000)){ IsBackground = true }.Start();
+            Console.WriteLine("[Server] UDP OrderListener pokrenut na portu 15000.");
 
             // 3.3) TCP listener za registraciju i notifikacije na portu 5000
             new Thread(() => StartClientListener(
                 clientDirectory,
                 notificationService,
-                tcpPort: 5000))
+                tcpPort: 5000
+                ))
             {
                 IsBackground = true
             }.Start();
@@ -83,6 +86,56 @@ namespace Server
         /// Deserijalizuje ih, loguje kao Base64 i potom prosleđuje prepService.SendOrder.
         /// gornji thread pravi novi thread, da on moze da obavlja posao bez da blokira ostale
         /// </summary>
+        /// 
+        private static void StartOrderListenerUdp(
+            ISendOrderForPreparation prepService,
+             int udpPort)
+        {
+            var udp = new UdpClient(udpPort);
+            var remoteEP = new IPEndPoint(IPAddress.Any, 0);
+            Console.WriteLine($"[Server] Čeka UDP ORDER na portu {udpPort}...");
+
+            while (true)
+            {
+                try
+                {
+                    // 1) Receive entire datagram
+                    var data = udp.Receive(ref remoteEP);
+                    var text = Encoding.UTF8.GetString(data).Trim();
+                    // očekujemo npr. "ORDER;1;3;QmFzZTY0..."
+                    if (!text.StartsWith("ORDER;")) continue;
+
+                    // 2) Parsiraj
+                    var parts = text.Split(new[] { ';' }, 4);
+                    int waiterId = int.Parse(parts[1]);
+                    int tableNumber = int.Parse(parts[2]);
+                    string b64 = parts[3];
+
+                    Console.WriteLine($"[Server] UDP ORDER od konobara {waiterId} za sto {tableNumber}");
+
+                    // 3) Deserijalizuj Table iz Base64
+                    var tblBytes = Convert.FromBase64String(b64);
+                    Table table;
+                    using (var ms = new MemoryStream(tblBytes))
+                    {
+                        var bf = new BinaryFormatter();
+                        table = (Table)bf.Deserialize(ms);
+                    }
+
+                    Console.WriteLine($"[Server] Deserijalizovano {table.TableOrders.Count} stavki.");
+
+                    // 4) Prosledi u SendOrderForPreparationService
+                    prepService.SendOrder(
+                        waiterId,
+                        table.TableNumber,
+                        table.TableOrders);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ERROR] UDP OrderListener: {ex.Message}");
+                }
+            }
+        }
         private static void StartOrderListener(ISendOrderForPreparation prepService, int tcpPort)
         {
             var listener = new TcpListener(IPAddress.Any, tcpPort);
@@ -148,10 +201,11 @@ namespace Server
         /// Listener koji prihvata klijente (konobare, kuvare, barmene),
         /// obrađuje REGISTER i READY poruke.
         /// </summary>
-        private static void StartClientListener(
-            IClientDirectory directory,
-            NotificationService notifier,
-            int tcpPort)
+         private static void StartClientListener(
+                 IClientDirectory directory,
+                 NotificationService notifier,
+                 int tcpPort
+                 )
         {
             var listener = new TcpListener(IPAddress.Any, tcpPort);
             listener.Start();
@@ -174,15 +228,22 @@ namespace Server
                             {
                                 int id = int.Parse(parts[1]);
                                 var type = (ClientType)Enum.Parse(typeof(ClientType), parts[2], true);
+                                int udpPort = int.Parse(parts[3]);
 
+                                
+                                var clientIp = ((IPEndPoint)client.Client.RemoteEndPoint).Address;
+
+                                
                                 directory.Register(new ClientInfo
                                 {
                                     Id = id,
                                     Type = type,
-                                    Socket = client
+                                    Socket = client,
+                                    UdpEndpoint = new IPEndPoint(clientIp, udpPort)
                                 });
+
                                 writer.WriteLine("REGISTERED");
-                                Console.WriteLine($"[SERVER] Registrovan klijent: ID={id}, Tip={type}");
+                                Console.WriteLine($"[SERVER] Registrovan klijent: ID={id}, Tip={type}, UDPport={udpPort}");
                             }
                             else
                             {

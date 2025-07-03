@@ -1,75 +1,87 @@
 ﻿using System;
 using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using Domain.Repositories.WaiterRepository;
-using Domain.Repositories.ManagerRepository;
 using Services.MakeAnOrderServices;
-using Services.TakeATableServices;
+using Services.TakeATableClientServices;
 using Services.WaiterManagementServices;
+
 namespace Client
 {
-    public class Waiter
+    class Client
     {
         static void Main(string[] args)
         {
-            // 1) Parsiranje argumenata
-            Console.WriteLine($"Waiter number #{args[1]},");
-            Console.WriteLine($"clientId #{args[0]}");
-            Console.WriteLine($"Port #{args[2]}");
+            if (args.Length < 3)
+            {
+                Console.WriteLine("Upotreba: Client <WaiterId> <TotalWaiters> <UdpPort>");
+                return;
+            }
 
-            int.TryParse(args[0], out int waiterId);
-            int.TryParse(args[1], out int numberOfWaiters);
-            int.TryParse(args[2], out int udpPort);
+            int waiterId = int.Parse(args[0]);
+            int totalWaiters = int.Parse(args[1]);
+            int udpPort = int.Parse(args[2]);
 
-            // 2) Inicijalizacija repozitorijuma i servisa
-            var waiterRepo = new WaiterRepository(numberOfWaiters);
-            var orderService = new MakeAnOrderManagerService(waiterRepo);
-            // ZA SERVER: on sluša UDP na portu 4000
-            const int serverUdpPort = 4000;
-            var tableService = new TakeATableClientService(orderService, waiterRepo, serverUdpPort);
+            Console.WriteLine($"Waiter number #{totalWaiters}, clientId #{waiterId}, UDP port #{udpPort}");
 
-            // **OVDE JE KLJUČ** – prosledi waiterRepo i menadžeru
+            // 1) Inicijalizacija repozitorijuma i servisa
+            var waiterRepo = new WaiterRepository(totalWaiters);
+            
+            var orderService = new MakeAnOrderWaiterService(waiterRepo);
+            var tableService = new TakeATableClientService(orderService, waiterRepo, udpPort);
             var waiterMgmt = new WaiterManagementService(tableService, waiterRepo);
 
-            // 3) Pokretanje background-threada koji sluša READY;… poruke
+            // 2) Startujemo background thread za READY-notifikacije (TCP)
             const string serverIp = "127.0.0.1";
             const int serverPort = 5000;
             new Thread(() =>
             {
-                using (var tcp = new TcpClient(serverIp, serverPort))
-                using (var reader = new StreamReader(tcp.GetStream(), Encoding.UTF8))
-                using (var writer = new StreamWriter(tcp.GetStream(), Encoding.UTF8) { AutoFlush = true })
+                try
                 {
-                    // Registracija za notifikacije
+                    var tcp = new TcpClient(serverIp, serverPort);
+                    var stream = tcp.GetStream();
+                    var reader = new StreamReader(stream, Encoding.UTF8);
+                    var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+
+                    // Registracija za notifikacije, šaljemo i isti udpPort (iako ga server za Waiter ne koristi za PREPARE)
                     writer.WriteLine($"REGISTER;{waiterId};Waiter;{udpPort}");
-                    if (reader.ReadLine() != "REGISTERED") return;
+                    if (reader.ReadLine() != "REGISTERED")
+                        return;
+
+                    Console.WriteLine("Notification listener pokrenut, čekam READY poruke...");
 
                     string line;
                     while ((line = reader.ReadLine()) != null)
                     {
-                        if (!line.StartsWith("READY;")) continue;
-                        // READY;{table};{waiterId}
+                        if (!line.StartsWith("READY;"))
+                            continue;
+
+                        // READY;{tableNo};{waiterId}
                         var parts = line.Split(';');
-                        int tableNum = int.Parse(parts[1]);
-                        int wId = int.Parse(parts[2]);
+                        int tableNo = int.Parse(parts[1]);
 
-                        // signaliziraj menadžeru da je porudžbina spremna
-                        waiterRepo.SetOrderReady(wId);
-                        Console.WriteLine($"\nPorudzbina za sto {tableNum} je spremna! Nosim je…");
+                        Console.WriteLine($"Porudžbina za sto {tableNo} je spremna! Nosim je…");
                         Thread.Sleep(1500);
-                        Console.WriteLine("Porudzbina odnesena!\n");
-                        waiterRepo.ClearOrderReady(wId);
-
+                        Console.WriteLine($"Porudžbina za sto {tableNo} je dostavljena.");
                     }
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[NotificationThread ERROR] {ex.Message}");
+                }
             })
-            { IsBackground = true }.Start();
+            { IsBackground = true }
+            .Start();
 
-            // 4) Pokreni glavni meni konobara
-            //waiterMgmt.WaiterIsServing(waiterId);
+            // 3) Glavna nit: meni koji ne završava dok god ne odaberemo 0
             waiterMgmt.TakeOrReserveATable(waiterId, Domain.Enums.ClientType.Waiter);
+
+            // 4) Kad izađemo iz menija (opcija 0), možemo da blokiramo još malo
+            Console.WriteLine("Konobar je zatvoren. Pritisni ENTER za kraj...");
+            Console.ReadLine();
         }
     }
 }
