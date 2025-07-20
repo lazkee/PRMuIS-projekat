@@ -16,10 +16,13 @@ namespace Services.MakeAnOrderServices
     {
         IWaiterRepository iWaiterRepository;
         const int serverOrderPort = 15000;
-        UdpClient udpOrderClient = new UdpClient(); 
-        public MakeAnOrderWaiterService(IWaiterRepository _iWaiterRepository)
+       private Socket _socket;
+        public MakeAnOrderWaiterService(IWaiterRepository _iWaiterRepository, int port)
         {
             iWaiterRepository = _iWaiterRepository;
+            _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            _socket.Bind(new IPEndPoint(IPAddress.Any, port));
+            _socket.Connect(new IPEndPoint(IPAddress.Loopback, serverOrderPort));
         }
 
         private void SendMessage(Socket socket, byte[] message)
@@ -130,7 +133,7 @@ namespace Services.MakeAnOrderServices
                 string base64msg = Convert.ToBase64String(tableData);
                 string message = $"ORDER;{WaiterID};{brojSlobodnogStola};{base64msg}\n";
                 var bytes = Encoding.UTF8.GetBytes(message);
-                udpOrderClient.Send(bytes, bytes.Length, "127.0.0.1", serverOrderPort);
+                _socket.Send(bytes);
                 Console.WriteLine($"[Waiter] Poslato UDP ORDER: Konobar #{WaiterID}, Broj stola #{brojSlobodnogStola}, Broj artikala:{orders.Count}");
 
 

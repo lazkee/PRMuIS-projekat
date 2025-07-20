@@ -37,7 +37,7 @@ namespace Manager
             sock.Connect(new IPEndPoint(IPAddress.Loopback, 5000));
 
             // b) Pošaljemo REGISTER;{waiterId};Waiter;{udpPort}\n
-            string regMsg = $"REGISTER;{managerId};Waiter;{udpPort}\n";
+            string regMsg = $"REGISTER;{managerId};Manager;{udpPort}\n";
             sock.Send(Encoding.UTF8.GetBytes(regMsg));
 
             // c) Prihvatimo ACK liniju “REGISTERED\n”
