@@ -116,11 +116,11 @@ namespace Services.MakeAnOrderServices
                     t.TableState = TableState.BUSY;
                     t.Capacity = brojGostiju;
                     t.TableNumber = brojSlobodnogStola;
-
+                    tdb.updateRepository(t);
                     bf.Serialize(ms, t);
                     tableData = ms.ToArray();
                 }
-
+                
                 //byte[] waiterIdData = new byte[4];
                 //waiterIdData = Encoding.UTF8.GetBytes(WaiterID.ToString());
                 //SendMessage(clientSocket, waiterIdData);

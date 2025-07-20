@@ -2,15 +2,20 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading;
 using Domain.Enums;
 using Domain.Models;
 using Domain.Repositories;
 using Domain.Repositories.OrderRepository;
+using Domain.Repositories.TableRepository;
 using Domain.Services;
+
 
 namespace Services.SendOrderForPreparationServices
 {
@@ -20,7 +25,7 @@ namespace Services.SendOrderForPreparationServices
         private readonly IOrderRepository _foodRepo;
         private readonly IOrderRepository _drinkRepo;
 
-        private readonly UdpClient _udp = new UdpClient();
+        
 
         public SendOrderForPreparationService(
             IClientDirectory directory,
@@ -69,67 +74,80 @@ namespace Services.SendOrderForPreparationServices
         /// Pozadinska nit: čeka batch porudžbina iz repozitorijuma
         /// i šalje ih odgovarajućem tipu radnika putem TCP protokola.
         /// </summary>
-        private void ProcessOrdersToStaff(IOrderRepository repository, ClientType workerType)
+        public void ProcessOrdersToStaff(IOrderRepository repository, ClientType workerType)
         {
             Console.WriteLine($"[SERVER] Pokrećem dispatch thread za {workerType}");
-            int nextClient = 0;
+            var rnd = new Random();
+            var formatter = new BinaryFormatter();
 
             while (true)
             {
-                // 1) Preuzmi batch porudžbina (blokira dok repozitorijum ne sadrži ništa)
+                // 1) Uzmi batch porudžbina
                 var batch = repository.RemoveOrder();   // List<Order>
-                if (batch == null || batch.Count == 0) continue;
-
-
-
-
-
-
-                // 2) Pripremi jedinstvenu poruku: uzmemo tableNumber i waiterId iz prve stavke
-                int tableNo = batch[0]._tableNumber;    // već popunjeno
-                int waiterId = batch[0]._waiterId;       // već popunjeno
-
-
-
-                // 3) Sastavi sadržaj batch-a kao niz imena, npr. "Karadjordjeva,Karadjordjeva,Burek"
-                string content = string.Join(",", batch.Select(o => o._articleName));
-
-                Console.WriteLine(
-                    $"[SERVER] Dispatchujem cele porudžbine za sto {tableNo} " +
-                    $"(konobar {waiterId}): {content}");
-
-                // 4) Učitaj najnoviju listu registrovanih radnika
-                var clients = _directory.GetByType(workerType).ToList();
-                if (!clients.Any())
+                if (batch == null || batch.Count == 0)
                 {
-                    Console.WriteLine($"[WARN] Nema registrovanih {workerType}-a za pripremu.");
-                    Thread.Sleep(500);
+                    Thread.Sleep(50);
                     continue;
                 }
 
-                // 5) Round-robin ili uvek istog radnika
-                var clientInfo = clients[nextClient];
-                nextClient = (nextClient + 1) % clients.Count;
+                // 2) Dohvati sve trenutno registrovane klijente željenog tipa
+                var clientList = _directory
+                    .GetByType(workerType)
+                    .ToList();
 
-                // 6) Pošalji **jednu** PREPARE poruku sa kompletom batch-a
-                //    Format: PREPARE;{tableNo};{waiterId};{content}\n
-                string msg = $"PREPARE;{tableNo};{waiterId};{content}\n";
-                byte[] data = Encoding.UTF8.GetBytes(msg);
+                if (clientList.Count == 0)
+                {
+                    Console.WriteLine($"[SERVER] Nema aktivnih {workerType}-a za dispatch.");
+                    Thread.Sleep(200);
+                    continue;
+                }
 
+                // 3) Pripremi Table objekat
+                //int tableNo = batch[0]._tableNumber;
+                //int waiterId = batch[0]._waiterId;
+                //var table = new Table(
+                //    tableNumber: tableNo,
+                //    numberOfGuests: 0,                 // ako nemaš broj gostiju, možeš staviti 0
+                //    tableState: TableState.BUSY,
+                //    orders: batch);
+                TableRepository tableRepository = new TableRepository();
+
+                int tableNo = batch[0]._tableNumber;
+                int waiterId = batch[0]._waiterId;
+                //Table table = tableRepository.GetByID(tableNo);
+                
+
+                // 4) Serijalizuj ga u bajt niz
+                byte[] orderData = new byte[8192];
+                using (var ms = new MemoryStream())
+                {
+                    formatter.Serialize(ms, batch);
+                    orderData = ms.ToArray();
+                }
+
+                // 5) Neka poruka bude: "PREPARE;{tableNo};{waiterId};{Base64(tablica)}\n"
+                string b64 = Convert.ToBase64String(orderData);
+                string protocol = $"PREPARE;{tableNo};{waiterId};{b64}\n";
+                byte[] payload = Encoding.UTF8.GetBytes(protocol);
+
+                // 6) Izaberi nasumičnog radnika i pošalji mu
+                var clientInfo = clientList[rnd.Next(clientList.Count)];
                 try
                 {
-                    //clientInfo.Socket.GetStream().Write(data, 0, data.Length); //ukoliko bi se slalo tcp protokolom
-                    _udp.Send(data, data.Length, clientInfo.UdpEndpoint);
+                    clientInfo.Socket.Send(payload);
                     Console.WriteLine(
-                        $"[SERVER] Poslato {workerType}#{clientInfo.Id}: {msg.Trim()}");
+                        $"[SERVER] Poslato {workerType}#{clientInfo.Id}: PREPARE;{tableNo};{waiterId};(serialized {batch.Count} stavki)");
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine(
-                        $"[ERROR] Neuspelo slanje {workerType}#{clientInfo.Id}: {ex.Message}");
+                        $"[ERROR] Neuspešno slanje {workerType}#{clientInfo.Id}: {ex.Message}");
                 }
             }
         }
+
+
+
 
     }
 }

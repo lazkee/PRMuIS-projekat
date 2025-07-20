@@ -9,8 +9,9 @@ namespace Domain.Models
         public int Id { get; set; }
         public ClientType Type { get; set; }
 
-        public TcpClient Socket { get; set; }
+        public Socket Socket { get; set; }
 
-        public IPEndPoint UdpEndpoint { get; set; }
+        public IPEndPoint Endpoint { get; set; }
+        
     }
 }

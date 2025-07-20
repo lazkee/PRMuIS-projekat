@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -25,49 +24,74 @@ namespace Client
             int totalWaiters = int.Parse(args[1]);
             int udpPort = int.Parse(args[2]);
 
-            Console.WriteLine($"Waiter number #{totalWaiters}, clientId #{waiterId}, UDP port #{udpPort}");
+            Console.WriteLine($"Waiter #{waiterId} (od {totalWaiters}), UDP port {udpPort}");
 
-            // 1) Inicijalizacija repozitorijuma i servisa
+            // 1) Postavljanje repoa i servisa za naručivanje i sto
             var waiterRepo = new WaiterRepository(totalWaiters);
-            
             var orderService = new MakeAnOrderWaiterService(waiterRepo);
             var tableService = new TakeATableClientService(orderService, waiterRepo, udpPort);
             var waiterMgmt = new WaiterManagementService(tableService, waiterRepo);
 
-            // 2) Startujemo background thread za READY-notifikacije (TCP)
+            // 2) Pokrećemo jedan Thread koji obavlja:
+            //    a) TCP REGISTER
+            //    b) Čeka ACK
+            //    c) Beskonačno čita READY;… poruke
             const string serverIp = "127.0.0.1";
             const int serverPort = 5000;
+
             new Thread(() =>
             {
                 try
                 {
-                    var tcp = new TcpClient(serverIp, serverPort);
-                    var stream = tcp.GetStream();
-                    var reader = new StreamReader(stream, Encoding.UTF8);
-                    var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+                    // a) Kreiramo TCP socket i povežemo se
+                    var sock = new Socket(
+                        AddressFamily.InterNetwork,
+                        SocketType.Stream,
+                        ProtocolType.Tcp);
+                    sock.Connect(new IPEndPoint(IPAddress.Parse(serverIp), serverPort));
 
-                    // Registracija za notifikacije, šaljemo i isti udpPort (iako ga server za Waiter ne koristi za PREPARE)
-                    writer.WriteLine($"REGISTER;{waiterId};Waiter;{udpPort}");
-                    if (reader.ReadLine() != "REGISTERED")
-                        return;
+                    // b) Pošaljemo REGISTER;{waiterId};Waiter;{udpPort}\n
+                    string regMsg = $"REGISTER;{waiterId};Waiter;{udpPort}\n";
+                    sock.Send(Encoding.UTF8.GetBytes(regMsg));
 
-                    Console.WriteLine("Notification listener pokrenut, čekam READY poruke...");
+                    // c) Prihvatimo ACK liniju “REGISTERED\n”
+                    var tmp = new byte[1];
+                    
 
-                    string line;
-                    while ((line = reader.ReadLine()) != null)
+                    byte[] ackbytes = new byte[1024];
+                    int bytesRecieved = sock.Receive(ackbytes);
+                    string ack = Encoding.UTF8.GetString(ackbytes, 0, bytesRecieved).Trim();
+                    if (ack != "REGISTERED")
                     {
-                        if (!line.StartsWith("READY;"))
-                            continue;
-
-                        // READY;{tableNo};{waiterId}
-                        var parts = line.Split(';');
-                        int tableNo = int.Parse(parts[1]);
-
-                        Console.WriteLine($"Porudžbina za sto {tableNo} je spremna! Nosim je…");
-                        Thread.Sleep(1500);
-                        Console.WriteLine($"Porudžbina za sto {tableNo} je dostavljena.");
+                        Console.WriteLine($"\nREGISTRACIJA NEUSPJESNA");
                     }
-                }
+                    else
+                    {
+                        Console.WriteLine("\nUspjesno registrovan, cekam porudzbine");
+                    }
+
+                    // d) Beskonačna petlja za READY;{tableNo};{waiterId}\n
+
+                    while (true)
+                    {
+                        byte[] buffer = new byte[1024];
+                        int r = sock.Receive(buffer);
+
+                        string line = Encoding.UTF8.GetString(buffer).Trim();
+
+                        if (line.StartsWith("READY;"))
+                        {
+                            var parts = line.Split(';');
+                            int tableNo = int.Parse(parts[1]);
+                            Console.WriteLine($"Porudžbina za sto {tableNo} je spremna! Nosim…");
+                            Thread.Sleep(1500);
+                            Console.WriteLine($"Porudžbina za sto {tableNo} je dostavljena.");
+                        }
+
+                       }
+
+                        
+                  }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[NotificationThread ERROR] {ex.Message}");
@@ -76,11 +100,10 @@ namespace Client
             { IsBackground = true }
             .Start();
 
-            // 3) Glavna nit: meni koji ne završava dok god ne odaberemo 0
+            // 3) Glavna nit: interaktivni meni za uzimanje/rezervisanje stola
             waiterMgmt.TakeOrReserveATable(waiterId, Domain.Enums.ClientType.Waiter);
 
-            // 4) Kad izađemo iz menija (opcija 0), možemo da blokiramo još malo
-            Console.WriteLine("Konobar je zatvoren. Pritisni ENTER za kraj...");
+            Console.WriteLine("Konobar je zatvoren. Pritisnite ENTER za kraj...");
             Console.ReadLine();
         }
     }

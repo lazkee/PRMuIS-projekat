@@ -9,24 +9,29 @@ namespace Services.TakeATableServices
     public class TakeATableServerService : ITakeATableServerService
     {
         private readonly IReadService _readService;
-        private readonly UdpClient _udpServer;
+        private readonly Socket _serverSocketUdp;
+        private  EndPoint _remoteEp;
 
         public TakeATableServerService(IReadService readService, int listenPort = 4000)
         {
             _readService = readService;
-            _udpServer = new UdpClient(listenPort);
+            _serverSocketUdp = new Socket(AddressFamily.InterNetwork, SocketType.Dgram,ProtocolType.Udp);
+            _serverSocketUdp.Bind(new IPEndPoint(IPAddress.Loopback, 4000));
             Console.WriteLine($"UDP TableListener pokrenut na portu {listenPort}.");
+
+            _remoteEp = new IPEndPoint(IPAddress.Any, 0);
         }
 
         public void TakeATable()
         {
-            var remoteEP = new IPEndPoint(IPAddress.Any, 0);
+            
 
             while (true)
             {
+                var buf = new byte[1024];
                 // 1) Čitanje zahteva
-                var data = _udpServer.Receive(ref remoteEP);
-                var msg = Encoding.UTF8.GetString(data);
+                int len = _serverSocketUdp.ReceiveFrom(buf, ref _remoteEp);
+                var msg = Encoding.UTF8.GetString(buf, 0, len);
                 // ocekivani format: TAKE_TABLE;{waiterId};{numGuests}
                 var parts = msg.Split(';');
                 int waiterId = int.Parse(parts[1]);
@@ -52,8 +57,8 @@ namespace Services.TakeATableServices
                 else { reply = "TABLE_BUSY"; }
                 // 3) Slanje odgovora
                 var outData = Encoding.UTF8.GetBytes(reply);
-                _udpServer.Send(outData, outData.Length, remoteEP);
-                Console.WriteLine($"Odgovor klijentu {remoteEP.Address}:{remoteEP.Port} → {reply}");
+                _serverSocketUdp.SendTo(outData,0, outData.Length,SocketFlags.None, _remoteEp);
+               // Console.WriteLine($"Odgovor klijentu {_remoteEp.Address}:{_remoteEP.Port} → {reply}");
             }
         }
     }

@@ -12,34 +12,37 @@ namespace Services.TakeATableClientServices
     public class TakeATableClientService : ITakeATableClientService
     {
         private readonly IMakeAnOrder _orderService;
-        private readonly IWaiterRepository _waiterRepo;
-        private readonly UdpClient _udpClient;
-        private readonly IPEndPoint _serverEndpoint;
+        private readonly Socket _udpSocket;
+        private readonly IPEndPoint _serverEp;
 
         public TakeATableClientService(
             IMakeAnOrder orderService,
             IWaiterRepository waiterRepo,
             int localUdpPort)
         {
+            //Kreiranje UDP socketa za konobara
+            _udpSocket = new Socket(AddressFamily.InterNetwork,
+                                SocketType.Dgram,
+                                ProtocolType.Udp);
+            _udpSocket.Bind(new IPEndPoint(IPAddress.Any, localUdpPort));
+            //Server endpoint
+            _serverEp = new IPEndPoint(IPAddress.Loopback, 4000);
             _orderService = orderService;
-            _waiterRepo = waiterRepo;
-            // Kreiramo UdpClient JEDNOM, u konstruktoru
-            _udpClient = new UdpClient(localUdpPort);
-            // Server slusa na 4000
-            _serverEndpoint = new IPEndPoint(IPAddress.Loopback, 4000);
         }
 
         public void TakeATable(int waiterId, int numGuests)
         {
-            // Nikad ne raditi: using (_udpClient) { … }
-            // Umesto toga samo šalji i primaš:
-            string req = $"TAKE_TABLE;{waiterId};{numGuests}";
-            var reqBytes = Encoding.UTF8.GetBytes(req);
-            _udpClient.Send(reqBytes, reqBytes.Length, _serverEndpoint);
+            if (_udpSocket == null) Console.WriteLine("ERROR: _udpSocket == null");
+            if (_serverEp == null) Console.WriteLine("ERROR: _serverEndpoint == null");
 
-            var remoteEP = new IPEndPoint(IPAddress.Any, 0);
-            byte[] respBytes = _udpClient.Receive(ref remoteEP);
-            string resp = Encoding.UTF8.GetString(respBytes);
+            var bynaryMes = Encoding.UTF8.GetBytes($"TAKE_TABLE;{waiterId};{numGuests}");
+            // Slanje podatka
+            _udpSocket.SendTo(bynaryMes,0, bynaryMes.Length, SocketFlags.None, _serverEp);
+
+            var buf = new byte[1024];
+            EndPoint remote = new IPEndPoint(IPAddress.Any, 0);
+            int received = _udpSocket.ReceiveFrom(buf, ref remote);
+            var resp = Encoding.UTF8.GetString(buf, 0, received);
 
             if (resp.StartsWith("TABLE_FREE;"))
             {

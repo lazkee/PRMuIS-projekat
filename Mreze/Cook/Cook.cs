@@ -1,7 +1,12 @@
-﻿using System;
+﻿using Domain.Models;
+using Domain.Repositories.TableRepository;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Security.AccessControl;
 using System.Text;
 using System.Threading;
 
@@ -13,74 +18,116 @@ namespace Cook
         {
             if (args.Length < 3)
             {
-                Console.WriteLine("Upotreba: Cook <ClientId> <Count> <UdpPort>");
+                Console.WriteLine("[Pokretanje Cook.exe nije uspjelo]");
                 return;
             }
 
             int cookId = int.Parse(args[0]);
             int count = int.Parse(args[1]);
-            int udpPort = int.Parse(args[2]);
+            int udpPort = int.Parse(args[2]);  // server može ignorisati ovaj port
 
-            Console.WriteLine($"Cook number #{count}, clientId #{cookId}, sluša UDP port #{udpPort}");
+            Console.WriteLine($"[Cook]  WorkerId #{cookId}");
 
             const string serverIp = "127.0.0.1";
-            const int serverPort = 5000;  // TCP port za REGISTER i READY
+            const int serverPort = 5000;    // isti port za REGISTER i za PREPARE
 
-            // Otvaramo TCP vezu za REGISTER i kasnije slanje READY
-            var tcp = new TcpClient(serverIp, serverPort);
-            var stream = tcp.GetStream();
-            var reader = new StreamReader(stream, Encoding.UTF8);
-            var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+            // 1) Otvorimo jedan TCP socket za registraciju
+            var sock = new Socket(
+                AddressFamily.InterNetwork,
+                SocketType.Stream,
+                ProtocolType.Tcp);
 
-            // 1) Registracija kod servera, šaljemo i svoj UDP port
-            writer.WriteLine($"REGISTER;{cookId};Cook;{udpPort}");
-            var resp = reader.ReadLine();
-            if (resp != "REGISTERED")
+            sock.Connect(new IPEndPoint(IPAddress.Parse(serverIp), serverPort));
+
+            // 2) Pošaljemo REGISTER;{cookId};Cook;{udpPort}\n
+            string regMsg = $"REGISTER;{cookId};Cook;{udpPort}\n";
+            sock.Send(Encoding.UTF8.GetBytes(regMsg));
+
+            // 3) Prihvatimo odgovor REGISTERED\n
+            var ackBuf = new byte[8192];
+            int bytesRecvd = sock.Receive(ackBuf);
+            string ack = Encoding.UTF8
+                                .GetString(ackBuf, 0, bytesRecvd)
+                                .Trim();
+
+            if (ack != "REGISTERED")
             {
-                Console.WriteLine("Registracija nije uspela, izlazim.");
+                Console.WriteLine($"\n[Cook] REGISTRACIJA NEUSPJESNA: {ack}");
+                sock.Close();
                 return;
             }
-            Console.WriteLine("Cook je uspešno registrovan na server.");
 
-            // 2) Pokrećemo UDP listener za PREPARE poruke
-            var udpClient = new UdpClient(udpPort);
-            var remoteEP = new IPEndPoint(IPAddress.Any, 0);
+            
+            Console.WriteLine("\n[Cook] USPJESNO REGISTROVAN, CEKAM PORUDZBINE...");
+            
 
-            Console.WriteLine($"Čekam PREPARE poruke na UDP portu {udpPort}...");
+            //otvaramo socket za porudzbine
+            Socket orderSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            orderSock.Connect(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
+            // 4) Beskonacna petlja za PREPARE;… poruke
             while (true)
             {
-                try
+                bytesRecvd = sock.Receive(ackBuf);
+                if (bytesRecvd <= 0)
                 {
-                    // Primamo celu datagramu
-                    var data = udpClient.Receive(ref remoteEP);
-                    var msg = Encoding.UTF8.GetString(data).Trim();
-
-                    if (!msg.StartsWith("PREPARE;"))
-                        continue;
-
-                    // "PREPARE;{tableNo};{waiterId};{items}"
-                    var parts = msg.Split(new[] { ';' }, 4);
-                    int tableNo = int.Parse(parts[1]);
-                    int waiter = int.Parse(parts[2]);
-                    string items = parts[3];
-
-                    Console.WriteLine($"[UDP] Porudžbina za sto {tableNo} od konobara {waiter}: {items}");
-
-                    // Simulacija pripreme
-                    Thread.Sleep(2000);
-                    Console.WriteLine($"[Cook] Završio pripremu za sto {tableNo}");
-
-                    // 3) Javljamo serveru preko TCP da smo spremni
-                    writer.WriteLine($"READY;{tableNo};{waiter}");
-                    Console.WriteLine($"[TCP] Poslato READY;{tableNo};{waiter}");
+                    Console.WriteLine("[Cook] Veza je prekinuta od strane servera.");
+                    break;
                 }
-                catch (Exception ex)
+
+                // dekodiramo, skidamo whitespace i \r\n
+                string msg = Encoding.UTF8
+                              .GetString(ackBuf, 0, bytesRecvd)
+                              .Trim();
+
+                if (!msg.StartsWith("PREPARE;"))
+                    continue;
+
+                // PREPARE;{tableNo};{waiterId};{items}
+                var parts = msg.Split(new[] { ';' }, 4);
+                int tableNo = int.Parse(parts[1]);
+                int waiter = int.Parse(parts[2]);
+                string b64 = parts[3];
+                byte[] orderData = Convert.FromBase64String(b64);
+
+                TableRepository tdb = new TableRepository();
+                Table table = tdb.GetByID(tableNo);
+
+
+                List<Order> ordered;
+                using (var ms = new MemoryStream(orderData))
                 {
-                    Console.WriteLine($"[ERROR] UDP listener: {ex.Message}");
+                    var bf = new BinaryFormatter();
+                    ordered = (List<Order>)bf.Deserialize(ms);
                 }
+                Console.WriteLine(
+                    $"[Cook] Porudzbina za sto {tableNo} od konobara {waiter}: /n Naruceno je:{ordered.Count} stavki");
+                foreach(Order o in ordered)
+                {
+                    Console.WriteLine($"{o.ToString()}");
+                }
+
+                foreach (Order o in ordered)
+                {
+                    o._articleStatus = ArticleStatus.INPROGRESS;
+                    Console.WriteLine($"[Cook] Priprema u toku: {o._articleName}");
+                    Random rnd =  new Random();
+                    Thread.Sleep(rnd.Next(1000,3000));
+                    o._articleStatus = ArticleStatus.FINISHED;
+                    Console.WriteLine($"[Cook] Priprema gotova: {o._articleName}");
+                }
+
+
+                // simulacija pripreme
+                Thread.Sleep(2000);
+                Console.WriteLine($"[Cook] PORUDZBINA KOMPLETIRANA STO:{tableNo}  KONOBAR{waiter}.");
+
+                // vracamo READY;{tableNo};{waiterId}\n
+                string readyMsg = $"READY;{tableNo};{waiter};hrane\n";
+                Console.WriteLine("[Cook] Server obavjesten o zavrsetku porudzbine");
+                orderSock.Send(Encoding.UTF8.GetBytes(readyMsg));
             }
 
-            // Napomena: ne zatvaramo udpClient/tcp ovde jer je petlja beskonačna
+            sock.Close();
         }
     }
 }

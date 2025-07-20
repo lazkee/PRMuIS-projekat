@@ -20,7 +20,7 @@ namespace Services.NotificationServices
             {
                 var msg = $"READY;{tableId};{waiterId}\n";
                 var data = Encoding.UTF8.GetBytes(msg);
-                waiter.Socket.GetStream().Write(data, 0, data.Length);
+                waiter.Socket.Send(data);
             }
         }
     }

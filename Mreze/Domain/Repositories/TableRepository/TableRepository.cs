@@ -24,6 +24,12 @@ namespace Domain.Repositories.TableRepository
             return _tables;
         }
 
+        public void updateRepository(Table t)
+        {
+            Table temp = GetByID(t.TableNumber);
+            temp = t;
+        }
+
         public Table GetByID(int id)
         {
             return tables[id];
