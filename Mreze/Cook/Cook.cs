@@ -37,18 +37,46 @@ namespace Cook
                 SocketType.Stream,
                 ProtocolType.Tcp);
 
-            sock.Connect(new IPEndPoint(IPAddress.Parse(serverIp), serverPort));
+            
 
             // 2) Pošaljemo REGISTER;{cookId};Cook;{udpPort}\n
+            
+            int attempts = 0;
+            while (true)
+            {
+                try
+                {
+                    Console.WriteLine("Pokusavam se konektovati sa serverom");
+                    sock.Connect(new IPEndPoint(IPAddress.Parse(serverIp), serverPort));
+                    break;
+                }
+                catch (SocketException e)
+                {
+                    Console.WriteLine($"Greska pri konekciji {e.Message}");
+                    if (++attempts >= 5) throw;
+                    Thread.Sleep(200);  
+                }
+            }
+            Console.WriteLine("saljem register");
             string regMsg = $"REGISTER;{cookId};Cook;{udpPort}\n";
-            sock.Send(Encoding.UTF8.GetBytes(regMsg));
+            Console.WriteLine("poslano cekam odg");
+            try { sock.Send(Encoding.UTF8.GetBytes(regMsg)); } catch (SocketException ex) { Console.WriteLine($"{ex.Message}"); }
 
             // 3) Prihvatimo odgovor REGISTERED\n
             var ackBuf = new byte[8192];
-            int bytesRecvd = sock.Receive(ackBuf);
+            int bytesRecvd=0;
+            try
+            {
+                bytesRecvd = sock.Receive(ackBuf);
+                Console.WriteLine($"primljen odg {Encoding.UTF8.GetString(ackBuf)}");
+
+                
+
+            }
+            catch (SocketException ex) { Console.WriteLine($"{ex.Message}"); }
             string ack = Encoding.UTF8
-                                .GetString(ackBuf, 0, bytesRecvd)
-                                .Trim();
+                                    .GetString(ackBuf, 0, bytesRecvd)
+                                    .Trim();
 
             if (ack != "REGISTERED")
             {

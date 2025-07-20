@@ -8,9 +8,11 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading;
 using Domain.Enums;
+using Domain.Helpers;
 using Domain.Models;
 using Domain.Repositories;
 using Domain.Repositories.OrderRepository;
+using Domain.Repositories.TableRepository;
 using Domain.Services;
 using Infrastructure.Networking;
 using Services.NotificationServices;
@@ -35,13 +37,20 @@ namespace Server
                 clientDirectory,
                 foodRepo,
                 drinkRepo);
+            // 3.3) TCP listener za registraciju i notifikacije na portu 5000
+            new Thread(() => StartClientListener(
+                clientDirectory,
+                notificationService,
+                registerPort: 5000,
+                readyPort: 5001,
+                billPort: 5003
+                ))
+            {
+                IsBackground = true
+            }.Start();
+            Console.WriteLine("[Server] TCP ClientListener pokrenut na portu 5000.");
 
-            // 2) Pokretanje i registrovanje klijentskih procesa
-            var createClientInstance = new CreateClientInstance();
-            createClientInstance.BrojITipKlijenta(2, ClientType.Waiter);
-            createClientInstance.BrojITipKlijenta(1, ClientType.Cook);
-            createClientInstance.BrojITipKlijenta(1, ClientType.Bartender);
-            createClientInstance.BrojITipKlijenta(1, ClientType.Manager);
+            
 
             // 3.1) UDP listener za raspodelu stolova
             var readService = new ServerReadTablesService();
@@ -64,23 +73,20 @@ namespace Server
             //new Thread(() => StartOrderListener(prepService, tcpPort: 15000)) { IsBackground = true }
             //    .Start();
             //Console.WriteLine("[Server] TCP OrderListener pokrenut na portu 15000.");
-            new Thread(() => StartOrderListenerUdp(prepService,  15000)){ IsBackground = true }.Start();
+            new Thread(() => StartOrderListenerUdp(prepService, 15000)) { IsBackground = true }.Start();
             Console.WriteLine("[Server] UDP OrderListener pokrenut na portu 15000.");
 
-            // 3.3) TCP listener za registraciju i notifikacije na portu 5000
-            new Thread(() => StartClientListener(
-                clientDirectory,
-                notificationService,
-                registerPort: 5000,
-                readyPort: 5001
-                ))
-            {
-                IsBackground = true
-            }.Start();
-            Console.WriteLine("[Server] TCP ClientListener pokrenut na portu 5000.");
+            
 
             // 4) Držimo main nit živom
             Console.WriteLine("Server je pokrenut. Pritisni ENTER za zaustavljanje.");
+            
+            // 2) Pokretanje i registrovanje klijentskih procesa
+            var createClientInstance = new CreateClientInstance();
+            createClientInstance.BrojITipKlijenta(2, ClientType.Waiter);
+            createClientInstance.BrojITipKlijenta(1, ClientType.Cook);
+            createClientInstance.BrojITipKlijenta(1, ClientType.Bartender);
+            createClientInstance.BrojITipKlijenta(1, ClientType.Manager);
             Console.ReadLine();
         }
 
@@ -140,11 +146,48 @@ namespace Server
             }
         }
 
+        //private static void StartClientListener(
+        //        IClientDirectory directory,
+        //        NotificationService notifier,
+        //        int registerPort,
+        //        int readyPort,
+        //        int billPort)
+        //{
+        //    // 1) Kreiramo dva ne‑blokirajuća TCP soketa: jedan za REGISTER, jedan za READY
+        //    var registerSock = new Socket(
+        //        AddressFamily.InterNetwork,
+        //        SocketType.Stream,
+        //        ProtocolType.Tcp);
+        //    registerSock.Bind(new IPEndPoint(IPAddress.Any, registerPort));
+        //    registerSock.Listen(100);
+        //    registerSock.Blocking = true;
+
+        //    var readySock = new Socket(
+        //        AddressFamily.InterNetwork,
+        //        SocketType.Stream,
+        //        ProtocolType.Tcp);
+        //    readySock.Bind(new IPEndPoint(IPAddress.Any, readyPort));
+        //    readySock.Listen(100);
+        //    readySock.Blocking = false;
+
+        //    var billSock = new Socket(
+        //        AddressFamily.InterNetwork,
+        //        SocketType.Stream,
+        //        ProtocolType.Tcp);
+        //    billSock.Bind(new IPEndPoint(IPAddress.Any, billPort));
+        //    billSock.Listen(100);
+        //    billSock.Blocking = false;
+
+        //    Console.WriteLine($"[Server] Socket za registraciju na portu {registerPort}");
+        //    Console.WriteLine($"[Server] Socket za zavrsene porudzbine socket na portu {readyPort}");
+        //    Console.WriteLine($"[Server] Socket za racun na portu {billPort}");
+
         private static void StartClientListener(
       IClientDirectory directory,
       NotificationService notifier,
       int registerPort,
-      int readyPort)
+      int readyPort,
+      int billPort)
         {
             // 1) Kreiramo dva ne‑blokirajuća TCP soketa: jedan za REGISTER, jedan za READY
             var registerSock = new Socket(
@@ -163,109 +206,258 @@ namespace Server
             readySock.Listen(100);
             readySock.Blocking = false;
 
+            var billSock = new Socket(
+                AddressFamily.InterNetwork,
+                SocketType.Stream,
+                ProtocolType.Tcp);
+            billSock.Bind(new IPEndPoint(IPAddress.Any, billPort));
+            billSock.Listen(100);
+            billSock.Blocking = false;
+
             Console.WriteLine($"[Server] REGISTER socket na portu {registerPort}");
             Console.WriteLine($"[Server] READY    socket na portu {readyPort}");
 
-            
 
-            
-            var readList = new List<Socket>();
 
-            while (true)
+            try
             {
-                // 2) Pripremimo listu za Select
-                readList.Clear();
-                readList.Add(registerSock);
-                readList.Add(readySock);
 
-                // 3) Select čeka do 1 sekunde na događaje za čitanje
-                Socket.Select(readList, null, null, microSeconds: 1_000_000);
 
-                if (readList.Count == 0)
+                while (true)
                 {
-                    // timeout, nema događaja
-                    continue;
-                }
+                    List<Socket> readList = new List<Socket> { registerSock, readySock };
+                    List<Socket> errorList = new List<Socket>() { registerSock, readySock };
 
-                // 4) Obrada svakog soketa koji je spreman
-                foreach (var s in readList)
-                {
-                    var buffer = new byte[1024];
-                    if (s == registerSock)
+
+
+                    // 3) Select čeka do 1 sekunde na događaje za čitanje
+                    Socket.Select(readList, null, errorList, 1000);
+
+                    if (readList.Count > 0)
                     {
-                        // neko pokušava da se registruje
-                        Socket client = registerSock.Accept();
-                        client.Blocking = true;
-                        // primamo REGISTER liniju
-                        
-                        int r = client.Receive(buffer);
-                        var line = Encoding.UTF8.GetString(buffer, 0, r).Trim();
-                        // očekujemo "REGISTER;{id};{type};{udpPort}"
-                        var parts = line.Split(';');
-                        
-                        if (parts.Length == 4 && parts[0] == "REGISTER")
+                        foreach (var s in readList)
                         {
-                            int id = int.Parse(parts[1]);
-                            var type = (ClientType)Enum.Parse(
-                                               typeof(ClientType),
-                                               parts[2],
-                                               true);
-                            int udpPort = int.Parse(parts[3]);
-                            var ip = ((IPEndPoint)client.RemoteEndPoint).Address;
-
-                            directory.Register(new ClientInfo
+                            var buffer = new byte[1024];
+                            if (s == registerSock)
                             {
-                                Id = id,
-                                Type = type,
-                                Socket = client,
-                                Endpoint = new IPEndPoint(ip, udpPort)
-                            });
+                                // neko pokušava da se registruje
+                                Socket client = registerSock.Accept();
+                                client.Blocking = true;
+                                // primamo REGISTER liniju
 
-                            // vratimo potvrdu
-                            var ok = Encoding.UTF8.GetBytes("REGISTERED\n");
-                            //IPEndPoint remoteEp = new IPEndPoint(ip,udpPort);
-                            //client.Connect(remoteEp);
-                            client.Send(ok);
-                            Console.WriteLine(
-                                $"[Server] Registrovan klijent: ID={id}, Tip={type}, UDPport={udpPort}");
+                                int r = client.Receive(buffer);
+                                var line = Encoding.UTF8.GetString(buffer, 0, r).Trim();
+                                // očekujemo "REGISTER;{id};{type};{udpPort}"
+                                var parts = line.Split(';');
+
+                                if (parts.Length == 4 && parts[0] == "REGISTER")
+                                {
+                                    int id = int.Parse(parts[1]);
+                                    var type = (ClientType)Enum.Parse(
+                                                       typeof(ClientType),
+                                                       parts[2],
+                                                       true);
+                                    int udpPort = int.Parse(parts[3]);
+                                    var ip = ((IPEndPoint)client.RemoteEndPoint).Address;
+
+                                    directory.Register(new ClientInfo
+                                    {
+                                        Id = id,
+                                        Type = type,
+                                        Socket = client,
+                                        Endpoint = new IPEndPoint(ip, udpPort)
+                                    });
+
+                                    // vratimo potvrdu
+                                    var ok = Encoding.UTF8.GetBytes("REGISTERED\n");
+                                    //IPEndPoint remoteEp = new IPEndPoint(ip,udpPort);
+                                    //client.Connect(remoteEp);
+                                    client.Send(ok);
+                                    Console.WriteLine(
+                                        $"[Server] Registrovan klijent: ID={id}, Tip={type}, UDPport={udpPort}");
+                                }
+                                else
+                                {
+                                    //var bad = Encoding.UTF8.GetBytes("INVALID_REGISTER\n");
+                                    //client.Send(bad);
+                                    Console.WriteLine($"Neuspjensa registracija [{line}]");
+                                }
+                                //client.Close();
+                            }
+                            else if (s == readySock)
+                            {
+                                // neko šalje READY poruku
+                                Socket client = readySock.Accept();
+                                client.Blocking = true;
+                                int r = client.Receive(buffer);
+                                var line = Encoding.UTF8.GetString(buffer, 0, r).Trim();
+                                // očekujemo "READY;{tableId};{waiterId}"
+                                var parts = line.Split(';');
+                                if (parts.Length == 4 && parts[0] == "READY")
+                                {
+                                    int tableId = int.Parse(parts[1]);
+                                    int waiterId = int.Parse(parts[2]);
+                                    string tipPorudzbine = parts[3];
+                                    Console.WriteLine(
+                                        $"[Server]Porudzbina {tipPorudzbine} za konobara #{waiterId} za sto {tableId} je gotova");
+                                    notifier.NotifyOrderReady(tableId, waiterId);
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"[Server] Neočekivana poruka na READY socket: {line}");
+                                }
+                                //client.Close();
+                            }
                         }
-                        else
-                        {
-                            //var bad = Encoding.UTF8.GetBytes("INVALID_REGISTER\n");
-                            //client.Send(bad);
-                            Console.WriteLine($"Neuspjensa registracija [{line}]");
-                        }
-                        //client.Close();
                     }
-                    else if (s == readySock)
+                    if (errorList.Count > 0)
                     {
-                        // neko šalje READY poruku
-                        Socket client = readySock.Accept();
-                        client.Blocking = true;
-                        int r = client.Receive(buffer);
-                        var line = Encoding.UTF8.GetString(buffer, 0, r).Trim();
-                        // očekujemo "READY;{tableId};{waiterId}"
-                        var parts = line.Split(';');
-                        if (parts.Length == 4 && parts[0] == "READY")
+                        Console.WriteLine($"Desilo se {errorList.Count} gresaka\n");
+
+                        foreach (Socket s in errorList)
                         {
-                            int tableId = int.Parse(parts[1]);
-                            int waiterId = int.Parse(parts[2]);
-                            string tipPorudzbine = parts[3];
-                            Console.WriteLine(
-                                $"[Server]Porudzbina {tipPorudzbine} za konobara #{waiterId} za sto {tableId} je gotova");
-                            notifier.NotifyOrderReady(tableId, waiterId);
+                            Console.WriteLine($"Greska na socketu: {s.LocalEndPoint}");
+
+                            Console.WriteLine("Zatvaram socket zbog greske...");
+                            s.Close();
+
                         }
-                        else
-                        {
-                            Console.WriteLine($"[Server] Neočekivana poruka na READY socket: {line}");
-                        }
-                        //client.Close();
                     }
+
+                    // 4) Obrada svakog soketa koji je spreman
+
+
                 }
-            }
+            }catch(SocketException ex) { Console.WriteLine($"Doslo je do greske: {ex.Message}"); }
         }
 
-        private static void StartOrderListener(
+
+        //    var readList = new List<Socket>();
+
+        //    while (true)
+        //    {
+        //        // 2) Pripremimo listu za Select
+        //        readList.Clear();
+        //        readList.Add(registerSock);
+        //        readList.Add(readySock);
+        //        readList.Add(billSock);
+
+        //        // 3) Select čeka do 1 sekunde na događaje za čitanje
+        //        Socket.Select(readList, null, null, microSeconds: 1_000_000);
+
+        //        if (readList.Count == 0)
+        //        {
+        //            // timeout, nema događaja
+        //            continue;
+        //        }
+
+        //        // 4) Obrada svakog soketa koji je spreman
+        //        foreach (Socket s in readList)
+        //        {
+        //            Console.WriteLine("prolazak kroz petlju");
+        //            var buffer = new byte[1024];
+        //            if (s == registerSock)
+        //            {
+        //                Console.WriteLine("Pokusaj registracije");
+        //                // neko pokušava da se registruje
+        //                Socket client = registerSock.Accept();
+        //                client.Blocking = true;
+        //                // primamo REGISTER liniju
+
+        //                int r = client.Receive(buffer);
+        //                var line = Encoding.UTF8.GetString(buffer, 0, r).Trim();
+        //                // očekujemo "REGISTER;{id};{type};{udpPort}"
+        //                var parts = line.Split(';');
+
+        //                if (parts.Length == 4 && parts[0] == "REGISTER")
+        //                {
+        //                    int id = int.Parse(parts[1]);
+        //                    var type = (ClientType)Enum.Parse(
+        //                                       typeof(ClientType),
+        //                                       parts[2],
+        //                                       true);
+        //                    int udpPort = int.Parse(parts[3]);
+        //                    var ip = ((IPEndPoint)client.RemoteEndPoint).Address;
+
+        //                    directory.Register(new ClientInfo
+        //                    {
+        //                        Id = id,
+        //                        Type = type,
+        //                        Socket = client,
+        //                        Endpoint = new IPEndPoint(ip, udpPort)
+        //                    });
+
+        //                    // vratimo potvrdu
+        //                    var ok = Encoding.UTF8.GetBytes("REGISTERED\n");
+        //                    //IPEndPoint remoteEp = new IPEndPoint(ip,udpPort);
+        //                    //client.Connect(remoteEp);
+        //                    client.Send(ok);
+        //                    Console.WriteLine(
+        //                        $"[Server] Registrovan klijent: ID={id}, Tip={type}, UDPport={udpPort}");
+        //                }
+        //                else
+        //                {
+        //                    //var bad = Encoding.UTF8.GetBytes("INVALID_REGISTER\n");
+        //                    //client.Send(bad);
+        //                    Console.WriteLine($"Neuspjensa registracija [{line}]");
+        //                }
+        //                //client.Close();
+        //            }
+
+        //            else if (s == readySock)
+        //            {
+        //                // neko šalje READY poruku
+        //                Socket client = readySock.Accept();
+        //                client.Blocking = true;
+        //                int r = client.Receive(buffer);
+        //                var line = Encoding.UTF8.GetString(buffer, 0, r).Trim();
+        //                // očekujemo "READY;{tableId};{waiterId}"
+        //                var parts = line.Split(';');
+        //                if (parts.Length == 4 && parts[0] == "READY")
+        //                {
+        //                    int tableId = int.Parse(parts[1]);
+        //                    int waiterId = int.Parse(parts[2]);
+        //                    string tipPorudzbine = parts[3];
+        //                    Console.WriteLine(
+        //                        $"[Server]Porudzbina {tipPorudzbine} za konobara #{waiterId} za sto {tableId} je gotova");
+        //                    notifier.NotifyOrderReady(tableId, waiterId);
+        //                }
+        //                else
+        //                {
+        //                    Console.WriteLine($"[Server] Neočekivana poruka na READY socket: {line}");
+        //                }
+        //            }
+//                    else if (s == billSock)
+//                    {
+//                        Socket client = billSock.Accept();
+//        client.Blocking = true;
+//                        int r = client.Receive(buffer);
+//        string line = Encoding.UTF8.GetString(buffer, 0, r).Trim(); ;
+//                        string[] parts = line.Split(';');
+//        bool pokusaj = Int32.TryParse(parts[2], out int brojStola);
+//                        if (parts[0] == "RACUN")
+//                        {
+//                            //izracunavanje kusura
+//                            CalculateTheBill kasa = new CalculateTheBill();
+//        TableRepository tdb = new TableRepository();
+//        string poruka = kasa.Calculate(brojStola);
+
+
+//        client.Send(Encoding.UTF8.GetBytes(poruka));
+//                        }
+//}
+//            else
+//            {
+//                Console.WriteLine("Nepoznata greska");
+//            }
+
+//            //client.Close();
+//        }
+//    }
+//}
+
+
+private static void StartOrderListener(
                 ISendOrderForPreparation prepService,
                 int tcpPort)
         {

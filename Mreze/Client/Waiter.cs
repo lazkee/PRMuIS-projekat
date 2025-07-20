@@ -30,7 +30,7 @@ namespace Client
             var waiterRepo = new WaiterRepository(totalWaiters);
             var orderService = new MakeAnOrderWaiterService(waiterRepo);
             var tableService = new TakeATableClientService(orderService, waiterRepo, udpPort);
-            var waiterMgmt = new WaiterManagementService(tableService, waiterRepo);
+            var waiterMgmt = new WaiterManagementService(tableService, waiterRepo,udpPort + 2000);
 
             // 2) Pokrećemo jedan Thread koji obavlja:
             //    a) TCP REGISTER
