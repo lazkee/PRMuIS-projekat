@@ -29,7 +29,7 @@ namespace Client
 
             // 1) Postavljanje repoa i servisa za naručivanje i sto
             var waiterRepo = new WaiterRepository(totalWaiters);
-            var orderService = new MakeAnOrderWaiterService(waiterRepo);
+            var orderService = new MakeAnOrderWaiterService(waiterRepo, udpPort);
             var tableService = new TakeATableClientService(orderService, waiterRepo, udpPort);
             var waiterMgmt = new WaiterManagementService(tableService, waiterRepo, udpPort + 2000, orderService);
 

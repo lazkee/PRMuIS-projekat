@@ -87,7 +87,7 @@ namespace Cook
 
             Console.WriteLine("\n[Cook] USPJESNO REGISTROVAN, CEKAM PORUDZBINE...");
 
-
+            Thread.Sleep(5000);
             //otvaramo socket za porudzbine
             Socket orderSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             Thread.Sleep(10000);

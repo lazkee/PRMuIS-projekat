@@ -53,6 +53,7 @@ namespace Barmen
             Console.WriteLine("\n[Barmen] USPJESNO REGISTROVAN, CEKAM NARUDZBINE...");
 
             // 4) Otvaramo drugi TCP socket za razmjenu PREPARE⇄READY
+            Thread.Sleep(5000);
             var orderSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             Thread.Sleep(10000);
             orderSock.Connect(new IPEndPoint(IPAddress.Parse(serverIp), readyPort));
