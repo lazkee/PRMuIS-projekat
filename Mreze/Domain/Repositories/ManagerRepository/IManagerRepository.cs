@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Domain.Models;
 
 namespace Domain.Repositories.ManagerRepository
@@ -10,7 +11,9 @@ namespace Domain.Repositories.ManagerRepository
         void RequestFreeTable(int managerId, int serverPort, int numberOfGuests);
         void RemoveReservation(int reservationId);
         IEnumerable<(int Key, Reservation Table)> GetExpiredReservations();
-
         bool CheckReservation(int reservationId);
+        int GetTableNumber(int reservationId);
+        DateTime GetExpireDate(int reservationId);
+        void AddNewReservationForServer(int reservationNumber, int tableNumber);
     }
 }

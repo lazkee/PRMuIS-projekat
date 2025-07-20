@@ -1,6 +1,4 @@
-﻿using Domain.Models;
-using Domain.Repositories.TableRepository;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -8,6 +6,7 @@ using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading;
+using Domain.Models;
 
 namespace Barmen
 {
@@ -22,14 +21,14 @@ namespace Barmen
             }
 
             int barmenId = int.Parse(args[0]);
-            int count    = int.Parse(args[1]);
-            int udpPort  = int.Parse(args[2]);  // server može ignorisati ovaj port
+            int count = int.Parse(args[1]);
+            int udpPort = int.Parse(args[2]);  // server može ignorisati ovaj port
 
             Console.WriteLine($"[Barmen]  WorkerId #{barmenId}");
 
-            const string serverIp   = "127.0.0.1";
-            const int    registerPort = 5000;    // port na kojem se REGISTER prima
-            const int    readyPort    = 5001;    // port na kojem se PREPARE i READY razmjenjuju
+            const string serverIp = "127.0.0.1";
+            const int registerPort = 5000;    // port na kojem se REGISTER prima
+            const int readyPort = 5001;    // port na kojem se PREPARE i READY razmjenjuju
 
             // 1) Otvaramo TCP socket za registraciju
             var sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -40,9 +39,9 @@ namespace Barmen
             sock.Send(Encoding.UTF8.GetBytes(regMsg));
 
             // 3) Prihvatimo odgovor REGISTERED\n
-            var ackBuf     = new byte[8192];
+            var ackBuf = new byte[8192];
             int bytesRecvd = sock.Receive(ackBuf);
-            string ack     = Encoding.UTF8.GetString(ackBuf, 0, bytesRecvd).Trim();
+            string ack = Encoding.UTF8.GetString(ackBuf, 0, bytesRecvd).Trim();
 
             if (ack != "REGISTERED")
             {
@@ -55,6 +54,7 @@ namespace Barmen
 
             // 4) Otvaramo drugi TCP socket za razmjenu PREPARE⇄READY
             var orderSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            Thread.Sleep(10000);
             orderSock.Connect(new IPEndPoint(IPAddress.Parse(serverIp), readyPort));
 
             // 5) Beskonačna petlja za PREPARE;… poruke
@@ -74,17 +74,17 @@ namespace Barmen
                     continue;
 
                 // PREPARE;{tableNo};{waiterId};{base64OrderData}
-                var parts    = msg.Split(new[] { ';' }, 4);
-                int    tableNo = int.Parse(parts[1]);
-                int    waiter  = int.Parse(parts[2]);
-                string b64     = parts[3];
+                var parts = msg.Split(new[] { ';' }, 4);
+                int tableNo = int.Parse(parts[1]);
+                int waiter = int.Parse(parts[2]);
+                string b64 = parts[3];
 
                 // 6) Decode + deserialize
                 byte[] orderData = Convert.FromBase64String(b64);
                 List<Order> ordered;
                 using (var ms = new MemoryStream(orderData))
                 {
-                    var bf     = new BinaryFormatter();
+                    var bf = new BinaryFormatter();
                     ordered = (List<Order>)bf.Deserialize(ms);
                 }
 

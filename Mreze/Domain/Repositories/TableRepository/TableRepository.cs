@@ -8,12 +8,16 @@ namespace Domain.Repositories.TableRepository
     {
         private static List<Table> tables = new List<Table>();
         private static readonly Random _rng = new Random();
+        private bool _initialized = false;
         public TableRepository()
         {
-
-            for (int i = 1; i < 26; ++i)
+            if (!_initialized)
             {
-                tables.Add(new Table(i, _rng.Next(2, 10), TableState.FREE, new List<Order>()));
+                for (int i = 1; i < 26; ++i)
+                {
+                    tables.Add(new Table(i, _rng.Next(2, 10), TableState.FREE, new List<Order>()));
+                }
+                _initialized = true;
             }
             //nmg da stavim nikako drugacije da ih bude odredjen broj (ili ne znam)
         }

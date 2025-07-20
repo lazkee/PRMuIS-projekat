@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
@@ -16,7 +15,7 @@ namespace Services.MakeAnOrderServices
     {
         IWaiterRepository iWaiterRepository;
         const int serverOrderPort = 15000;
-        UdpClient udpOrderClient = new UdpClient(); 
+        UdpClient udpOrderClient = new UdpClient();
         public MakeAnOrderWaiterService(IWaiterRepository _iWaiterRepository)
         {
             iWaiterRepository = _iWaiterRepository;
@@ -120,7 +119,7 @@ namespace Services.MakeAnOrderServices
                     bf.Serialize(ms, t);
                     tableData = ms.ToArray();
                 }
-                
+
                 //byte[] waiterIdData = new byte[4];
                 //waiterIdData = Encoding.UTF8.GetBytes(WaiterID.ToString());
                 //SendMessage(clientSocket, waiterIdData);

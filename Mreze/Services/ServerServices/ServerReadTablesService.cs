@@ -37,7 +37,7 @@ namespace Services.ServerServices
         public void ReleaseTable(int tableNumber)
         {
             var table = tables.GetAllTables().FirstOrDefault(t => t.TableNumber == tableNumber);
-            if(table != null)
+            if (table != null)
             {
                 table.TableState = TableState.FREE;
                 Console.WriteLine($"Table {tableNumber} is {table.TableState}");

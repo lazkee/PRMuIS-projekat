@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using Domain.Repositories.ManagerRepository;
 using Domain.Services;
 
@@ -56,7 +53,7 @@ namespace Services.ReleaseATableServices
                         }
                     }
                     _managerRepository.SetManagerState(managerNumber, false);
-                    Thread.Sleep(10_000); // check every 10 seconds
+                    Thread.Sleep(10000); // check every 10 seconds
                 }
 
             })

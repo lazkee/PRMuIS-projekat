@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Domain.Models
 {
@@ -12,6 +8,6 @@ namespace Domain.Models
 
         public DateTime ReservationTime { get; set; }
 
-        public DateTime ExpiryTime => ReservationTime + TimeSpan.FromSeconds(10);
+        public DateTime ExpiryTime => ReservationTime + TimeSpan.FromSeconds(60);
     }
 }

@@ -31,7 +31,8 @@ namespace Server
             {
                 waiterRepository = new WaiterRepository(brojKlijenata);
             }
-            else if (tipKlijenta == ClientType.Manager) {
+            else if (tipKlijenta == ClientType.Manager)
+            {
                 managerRepository = new ManagerRepository(brojKlijenata);
             }
         }

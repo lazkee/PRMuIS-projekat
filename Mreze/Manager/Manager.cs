@@ -1,14 +1,11 @@
 ﻿using System;
-using System.Net.Sockets;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using Domain.Repositories.ManagerRepository;
-using Domain.Repositories.WaiterRepository;
-using Services.MakeAnOrderServices;
 using Services.ManagementServices;
 using Services.ReleaseATableServices;
-using Services.TakeATableServices;
 
 namespace Manager
 {
@@ -37,7 +34,7 @@ namespace Manager
             sock.Connect(new IPEndPoint(IPAddress.Loopback, 5000));
 
             // b) Pošaljemo REGISTER;{waiterId};Waiter;{udpPort}\n
-            string regMsg = $"REGISTER;{managerId};Waiter;{udpPort}\n";
+            string regMsg = $"REGISTER;{managerId};Manager;{udpPort}\n";
             sock.Send(Encoding.UTF8.GetBytes(regMsg));
 
             // c) Prihvatimo ACK liniju “REGISTERED\n”
@@ -67,7 +64,52 @@ namespace Manager
                 releaseATableManagerService.ReleaseATable(managerNumber); //jako je bitno da ovde i gore bude managerNumber a ne clientId
 
                 //Console.ReadKey();
+
+                new Thread(() =>
+                {
+                    var udpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                    udpSocket.Bind(new IPEndPoint(IPAddress.Any, 4010));
+
+                    Console.WriteLine("[Manager] Listener za obaveštenja o iskorišćenim rezervacijama pokrenut na portu 4010.");
+
+                    EndPoint remote = new IPEndPoint(IPAddress.Any, 0);
+                    byte[] buffer = new byte[1024];
+
+                    while (true)
+                    {
+                        try
+                        {
+                            int received = udpSocket.ReceiveFrom(buffer, ref remote);
+                            string message = Encoding.UTF8.GetString(buffer, 0, received).Trim();
+
+                            if (message.StartsWith("RESERVATION_USED;"))
+                            {
+                                var parts = message.Split(';');
+                                if (parts.Length == 2 && int.TryParse(parts[1], out int reservationId))
+                                {
+                                    Console.WriteLine($"[Manager] Obaveštenje: rezervacija #{reservationId} je iskorišćena.");
+                                    managerRepo.RemoveReservation(reservationId);
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"[Manager] Neispravna poruka: {message}");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[Manager] Nepoznata poruka: {message}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[Manager] Greska u UDP prijemu: {ex.Message}");
+                        }
+                    }
+                })
+                { IsBackground = true }.Start();
             }
+
+
         }
     }
 }

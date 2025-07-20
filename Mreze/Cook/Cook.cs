@@ -1,14 +1,13 @@
-﻿using Domain.Models;
-using Domain.Repositories.TableRepository;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Security.AccessControl;
 using System.Text;
 using System.Threading;
+using Domain.Models;
+using Domain.Repositories.TableRepository;
 
 namespace Cook
 {
@@ -37,10 +36,10 @@ namespace Cook
                 SocketType.Stream,
                 ProtocolType.Tcp);
 
-            
+
 
             // 2) Pošaljemo REGISTER;{cookId};Cook;{udpPort}\n
-            
+
             int attempts = 0;
             while (true)
             {
@@ -54,7 +53,7 @@ namespace Cook
                 {
                     Console.WriteLine($"Greska pri konekciji {e.Message}");
                     if (++attempts >= 5) throw;
-                    Thread.Sleep(200);  
+                    Thread.Sleep(200);
                 }
             }
             Console.WriteLine("saljem register");
@@ -64,13 +63,13 @@ namespace Cook
 
             // 3) Prihvatimo odgovor REGISTERED\n
             var ackBuf = new byte[8192];
-            int bytesRecvd=0;
+            int bytesRecvd = 0;
             try
             {
                 bytesRecvd = sock.Receive(ackBuf);
                 Console.WriteLine($"primljen odg {Encoding.UTF8.GetString(ackBuf)}");
 
-                
+
 
             }
             catch (SocketException ex) { Console.WriteLine($"{ex.Message}"); }
@@ -85,12 +84,13 @@ namespace Cook
                 return;
             }
 
-            
+
             Console.WriteLine("\n[Cook] USPJESNO REGISTROVAN, CEKAM PORUDZBINE...");
-            
+
 
             //otvaramo socket za porudzbine
             Socket orderSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            Thread.Sleep(10000);
             orderSock.Connect(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5001));
             // 4) Beskonacna petlja za PREPARE;… poruke
             while (true)
@@ -129,7 +129,7 @@ namespace Cook
                 }
                 Console.WriteLine(
                     $"[Cook] Porudzbina za sto {tableNo} od konobara {waiter}: /n Naruceno je:{ordered.Count} stavki");
-                foreach(Order o in ordered)
+                foreach (Order o in ordered)
                 {
                     Console.WriteLine($"{o.ToString()}");
                 }
@@ -138,8 +138,8 @@ namespace Cook
                 {
                     o._articleStatus = ArticleStatus.INPROGRESS;
                     Console.WriteLine($"[Cook] Priprema u toku: {o._articleName}");
-                    Random rnd =  new Random();
-                    Thread.Sleep(rnd.Next(1000,3000));
+                    Random rnd = new Random();
+                    Thread.Sleep(rnd.Next(1000, 3000));
                     o._articleStatus = ArticleStatus.FINISHED;
                     Console.WriteLine($"[Cook] Priprema gotova: {o._articleName}");
                 }
