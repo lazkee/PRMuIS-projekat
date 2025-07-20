@@ -117,8 +117,8 @@ namespace Cook
                 string b64 = parts[3];
                 byte[] orderData = Convert.FromBase64String(b64);
 
-                TableRepository tdb = new TableRepository();
-                Table table = tdb.GetByID(tableNo);
+               
+                Table table = TableRepository.GetByID(tableNo);
 
 
                 List<Order> ordered;

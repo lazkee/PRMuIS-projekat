@@ -9,16 +9,16 @@ namespace Services.ServerServices
 {
     public class ServerReadTablesService : IReadService
     {
-        ITableRepository tables = new TableRepository();
+        
 
         public IEnumerable<Table> GetAllTables()
         {
-            return tables.GetAllTables();
+            return TableRepository.GetAllTables();
         }
 
         public int GetFreeTableFor(int numGuests)
         {
-            var free = tables.GetAllTables()
+            var free = TableRepository.GetAllTables()
                 .FirstOrDefault(t => t.TableState == TableState.FREE && t.Capacity >= numGuests);
             //return free != null ? free.TableNumber : -1;
             return free.TableNumber;
@@ -26,7 +26,7 @@ namespace Services.ServerServices
 
         public void OccupyTable(int tableNumber, int waiterId)
         {
-            var table = tables.GetAllTables().FirstOrDefault(t => t.TableNumber == tableNumber);
+            var table = TableRepository.GetAllTables().FirstOrDefault(t => t.TableNumber == tableNumber);
             if (table != null)
             {
                 table.TableState = TableState.BUSY;
@@ -36,7 +36,7 @@ namespace Services.ServerServices
 
         public void ReleaseTable(int tableNumber)
         {
-            var table = tables.GetAllTables().FirstOrDefault(t => t.TableNumber == tableNumber);
+            var table = TableRepository.GetAllTables().FirstOrDefault(t => t.TableNumber == tableNumber);
             if(table != null)
             {
                 table.TableState = TableState.FREE;

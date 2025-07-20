@@ -110,7 +110,7 @@ namespace Services.SendOrderForPreparationServices
                 //    numberOfGuests: 0,                 // ako nemaš broj gostiju, možeš staviti 0
                 //    tableState: TableState.BUSY,
                 //    orders: batch);
-                TableRepository tableRepository = new TableRepository();
+                
 
                 int tableNo = batch[0]._tableNumber;
                 int waiterId = batch[0]._waiterId;

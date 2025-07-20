@@ -112,14 +112,14 @@ namespace Services.MakeAnOrderServices
                 using (MemoryStream ms = new MemoryStream())
                 {
                     BinaryFormatter bf = new BinaryFormatter();
-                    ITableRepository tdb = new TableRepository();
-                    Table t = tdb.GetByID(brojSlobodnogStola);
+                    
+                    Table t = TableRepository.GetByID(brojSlobodnogStola);
                     t.OccupiedBy = WaiterID;
                     t.TableOrders = orders;
                     t.TableState = TableState.BUSY;
                     t.Capacity = brojGostiju;
                     t.TableNumber = brojSlobodnogStola;
-                    tdb.updateRepository(t);
+                    TableRepository.UpdateTable(t);
                     bf.Serialize(ms, t);
                     tableData = ms.ToArray();
                 }

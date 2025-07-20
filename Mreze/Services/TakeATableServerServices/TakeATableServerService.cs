@@ -48,6 +48,7 @@ namespace Services.TakeATableServices
                         reply = $"TABLE_FREE;{freeTable}";
                         // Obelezi sto kao zauzet
                         _readService.OccupyTable(freeTable, waiterId);
+                        Console.WriteLine($"[Server] Sto broj{freeTable} je sada zauzet");
                     }
                     else
                     {

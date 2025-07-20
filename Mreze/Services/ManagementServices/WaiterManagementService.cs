@@ -7,6 +7,7 @@ using Domain.Repositories.ManagerRepository;
 using Domain.Repositories.TableRepository;
 using Domain.Repositories.WaiterRepository;
 using Domain.Services;
+using Domain.Models;
 
 namespace Services.WaiterManagementServices
 {
@@ -66,10 +67,10 @@ namespace Services.WaiterManagementServices
                     }
                     else if (key == "2")
                     {
-                        Console.WriteLine("Unesite id stola za koji je potreban racun: ");
+                        Console.WriteLine("Unesite id stola za koji je potreban racun (0 za odustanak): ");
                         int br;
                         bool vrti = true;
-                        TableRepository tdb = new TableRepository();
+                         
                         while (vrti)
                         {
                             bool pokusaj = Int32.TryParse(Console.ReadLine(), out br);
@@ -77,40 +78,55 @@ namespace Services.WaiterManagementServices
                             {
                                 Console.WriteLine("Unesi validan broj stola!");
                             }
-                            else if (tdb.GetByID(br).TableOrders.Count == 0)
+                            else if (br == 0)
                             {
-                                Console.WriteLine("Odabrani sto je prazan i nema porudzbina./Unesite broj stola za koji je potreban racun");
+                                vrti = false;
+                                break;
+                            }
+                            else if (TableRepository.GetByID(br).TableOrders.Count == 0)
+                            {
+                                Console.WriteLine("Odabrani sto nema porudzbina ili nije usluzivao odabrani konobar.\nUnesite broj stola za koji je potreban racun(0 za odustanak)\n");
                             }
                             else
                             {
+                                
                                 socket.Send(Encoding.UTF8.GetBytes($"RACUN;{br.ToString()}"));
 
                                 byte[] buffer = new byte[8192];
                                 int bytesRecieved = socket.Receive(buffer);
-                                string ack = Encoding.UTF8.GetString(buffer, 0, bytesRecieved).Trim();
-                                string[] parts = ack.Split(';');
-                                bool uspjeh = Int32.TryParse(parts[0], out int iznos);
-                                string racun = parts[1];
+                                string line = Encoding.UTF8.GetString(buffer, 0, bytesRecieved).Trim();
+                                string[] parts = line.Split(';');
+                                int iznos = Int32.Parse(parts[0]);
+
                                 
                                 //ispis racuna
-                                Console.WriteLine($"Racun za sto broj {br}/n{racun}");
-
-                                Console.WriteLine("Unesite iznos napojnice (0 ukoliko ne zelite): ");
-                                uspjeh = Int32.TryParse(Console.ReadLine(), out int baksis);
-
-                                Console.WriteLine("Uplaceno: ");
-                                uspjeh = Int32.TryParse(Console.ReadLine(), out int uplaceno);
-
-                                if (uplaceno == baksis + iznos)
+                                
+                                Console.WriteLine($"RACUN ZA STO BROJ {br} ");
+                                Console.WriteLine(parts[1]);
+                                Console.WriteLine($"UKUPNO:{iznos} ");
+                                int baksis= -1;
+                                while(baksis < 0 )
                                 {
-                                    Console.WriteLine("Uplacen je tacan iznos kusur nije potreban.");
-                                    socket.Send(Encoding.UTF8.GetBytes($"KUSUR;{br};0"));
+                                    Console.WriteLine("Unesite iznos napojnice (0 ukoliko ne zelite): ");
+                                    bool uspjeh = Int32.TryParse(Console.ReadLine(), out  baksis);
                                 }
-                                else 
+                                
+
+                                int uplaceno=-1;
+                                while (uplaceno < iznos)
                                 {
-                                    Console.WriteLine($"Kusur vracen. Iznos:{uplaceno-baksis-iznos}");
-                                    socket.Send(Encoding.UTF8.GetBytes($"KUSUR;{br};0"));
+                                    Console.WriteLine("Uplaceno: ");
+                                    bool uspjeh = Int32.TryParse(Console.ReadLine(), out uplaceno);
                                 }
+                                
+
+                                // KUSUR;{BRSTOLA};{IZNOS+BAKSIS};UPLACENO;
+                                socket.Send(Encoding.UTF8.GetBytes($"KUSUR;{br};{iznos+baksis};{uplaceno}"));
+                                byte[] buff = new byte[8192];
+                                bytesRecieved = socket.Receive(buff);
+                                Console.WriteLine($"{Encoding.UTF8.GetString(buff, 0, bytesRecieved)}");
+                                TableRepository.ClearTable(br);
+                                vrti = false;
                             }
                         }
                        

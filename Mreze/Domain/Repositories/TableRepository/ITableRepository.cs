@@ -8,6 +8,7 @@ namespace Domain.Repositories.TableRepository
         IEnumerable<Table> GetAllTables();
         Table GetByID(int id);
         void updateRepository(Table t);
+        void clearTable(int n);
 
     }
 }

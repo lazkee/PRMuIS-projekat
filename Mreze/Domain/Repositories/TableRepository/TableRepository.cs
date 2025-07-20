@@ -1,39 +1,57 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Domain.Models;
 
 namespace Domain.Repositories.TableRepository
 {
-    public class TableRepository : ITableRepository
+    public static class TableRepository
     {
-        private static List<Table> tables = new List<Table>();
+        // jedinička, statička lista svih stolova
+        private static readonly List<Table> _tables;
         private static readonly Random _rng = new Random();
-        public TableRepository()
-        {
 
-            for (int i = 1; i < 26; ++i)
+        // Static konstruktor koji inicijalizuje 25 stolova
+        static TableRepository()
+        {
+            _tables = new List<Table>();
+            for (int i = 1; i <= 25; i++)
             {
-                tables.Add(new Table(i, _rng.Next(2, 10), TableState.FREE, new List<Order>()));
+                _tables.Add(new Table(
+                    tableNumber: i,
+                    numberOfGuests: _rng.Next(2, 10),
+                    tableState: TableState.FREE,
+                    orders: new List<Order>()
+                ));
             }
-            //nmg da stavim nikako drugacije da ih bude odredjen broj (ili ne znam)
         }
 
-        public IEnumerable<Table> GetAllTables()
+        
+        public static IEnumerable<Table> GetAllTables()
+            => _tables;
+
+        
+        public static void UpdateTable(Table table)
         {
-            IEnumerable<Table> _tables = tables;
-            return _tables;
+            int idx = _tables.FindIndex(t => t.TableNumber == table.TableNumber);
+            if (idx >= 0)
+                _tables[idx] = table;
         }
 
-        public void updateRepository(Table t)
+        
+        public static Table GetByID(int tableNumber)
+            => _tables.FirstOrDefault(t => t.TableNumber == tableNumber);
+
+        
+        public static void ClearTable(int tableNumber)
         {
-            Table temp = GetByID(t.TableNumber);
-            temp = t;
+            var resetTable = new Table(
+                tableNumber: tableNumber,
+                numberOfGuests: _rng.Next(2, 10),
+                tableState: TableState.FREE,
+                orders: new List<Order>()
+            );
+            UpdateTable(resetTable);
         }
-
-        public Table GetByID(int id)
-        {
-            return tables[id];
-        }
-
     }
 }
