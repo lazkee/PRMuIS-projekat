@@ -44,10 +44,6 @@
     <Compile Include="MakeAnOrderServices\MakeAnOrderWaiterService.cs" />
     <Compile Include="ManagementServices\ManagerManagementService.cs" />
     <Compile Include="NotificationServices\NotificationService.cs" />
-    <Compile Include="OrderManagementService\DrinkOrderManagementService.cs" />
-    <Compile Include="OrderManagementService\FoodOrderManagementService.cs" />
-    <Compile Include="PrepareOrderServices\PrepareDrinkService.cs" />
-    <Compile Include="PrepareOrderServices\PrepareFoodService.cs" />
     <Compile Include="ReleaseATableServices\ReleaseATableManagerService.cs" />
     <Compile Include="ReleaseATableServices\ReleaseATableServerService.cs" />
     <Compile Include="SendOrderForPreparationServices\SendOrderForPreparationService.cs" />

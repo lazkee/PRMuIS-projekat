@@ -19,13 +19,13 @@ namespace Services.ReleaseATableServices
             _port = port;
         }
 
-        public void ReleaseATable(int managerNumber = 0) //Ovo nicemu ne sluzi inace ali istu metodu implementira menadzer i server (serveru ne treba managerNumber pri pozivu pa je samo opcioni parametar = 0)
+        public void ReleaseATable(int managerNumber = 0)
         {
-            new Thread(() =>    //pravi thread u Servisu a ne u mainu (Serveru)
+            new Thread(() =>
             {
                 var udp = new UdpClient(_port);
                 var remoteEP = new IPEndPoint(IPAddress.Any, 0);
-                Console.WriteLine($"[Server] UDP ReleaseATableListener pokrenut na portu {_port}.");
+                Console.WriteLine($"[Server] Pokrenut servis za brisanje isteklih rezervacija UDP port {_port}.");
 
                 while (true)
                 {
@@ -38,7 +38,7 @@ namespace Services.ReleaseATableServices
                         {
                             int tableNum = int.Parse(message.Split(';')[1]);
                             _readService.ReleaseTable(tableNum);
-                            Console.WriteLine($"Table number {tableNum} released!\n");
+                            Console.WriteLine($"Sto broj {tableNum} je slobodan!\n");
 
                             string reply = $"CANCEL_OK;{tableNum}";
                             byte[] outData = Encoding.UTF8.GetBytes(reply);
@@ -47,7 +47,7 @@ namespace Services.ReleaseATableServices
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[ReleaseThread] Error: {ex.Message}");
+                        Console.WriteLine($"Error: {ex.Message}");
                     }
                 }
             })

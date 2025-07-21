@@ -45,25 +45,11 @@ namespace Services.WaiterManagementServices
                     Console.WriteLine("0. Zatvori konobara");
                     Console.Write("Izaberi uslugu: ");
                     var key = Console.ReadLine();
-                    //Console.WriteLine($"KEYYYYY {key}\n");
-
-                    //var key = ReadLineWithTimeout(1000 * 10); // 10 seconds timeout
-                    /*if (key == null)
-                    {
-                        Console.WriteLine("Input timed out.");
-                        // handle timeout (e.g., repeat menu, default action, etc.)
-                    }
-                    else
-                    {
-                        Console.WriteLine($"You entered: {key}");
-                    }*/
 
                     if (key == "1")
                     {
-                        // 1) Obeleži konobara kao zauzetog
                         _waiterRepo.SetWaiterState(clientId, true);
 
-                        // 2) Uzmi broj gostiju i pošalji zahtev
                         bool pokusaj = true;
 
                         while (pokusaj)
@@ -110,9 +96,6 @@ namespace Services.WaiterManagementServices
                                 string line = Encoding.UTF8.GetString(buffer, 0, bytesRecieved).Trim();
                                 string[] parts = line.Split(';');
                                 int iznos = Int32.Parse(parts[0]);
-
-                                
-                                //ispis racuna
                                 
                                 Console.WriteLine($"RACUN ZA STO BROJ {br} ");
                                 Console.WriteLine(parts[1]);
@@ -132,8 +115,6 @@ namespace Services.WaiterManagementServices
                                     bool uspjeh = Int32.TryParse(Console.ReadLine(), out uplaceno);
                                 }
                                 
-
-                                // KUSUR;{BRSTOLA};{IZNOS+BAKSIS};UPLACENO;
                                 socket.Send(Encoding.UTF8.GetBytes($"KUSUR;{br};{iznos+baksis};{uplaceno}"));
                                 byte[] buff = new byte[8192];
                                 bytesRecieved = socket.Receive(buff);
@@ -154,14 +135,12 @@ namespace Services.WaiterManagementServices
                             Socket udpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
                             IPEndPoint serverEndpoint = new IPEndPoint(IPAddress.Loopback, 4003);
 
-                            // Send reservation code to server
                             byte[] dataToSend = Encoding.UTF8.GetBytes(reservationCode);
                             udpSocket.SendTo(dataToSend, serverEndpoint);
 
-                            // Receive response
                             byte[] buffer = new byte[1024];
                             EndPoint fromEndpoint = new IPEndPoint(IPAddress.Any, 0);
-                            udpSocket.ReceiveTimeout = 5000; // optional: timeout in ms
+                            udpSocket.ReceiveTimeout = 5000;
 
                             int receivedBytes = udpSocket.ReceiveFrom(buffer, ref fromEndpoint);
                             string response = Encoding.UTF8.GetString(buffer, 0, receivedBytes);
@@ -201,46 +180,5 @@ namespace Services.WaiterManagementServices
                 }
             }
         }
-
-        public static string ReadLineWithTimeout(int timeoutMs)
-        {
-            var input = new StringBuilder();
-            var watch = System.Diagnostics.Stopwatch.StartNew();
-
-            while (true)
-            {
-                if (Console.KeyAvailable)
-                {
-                    var key = Console.ReadKey(true); // true to not echo
-                    if (key.Key == ConsoleKey.Enter)
-                    {
-                        Console.WriteLine();
-                        break;
-                    }
-                    else if (key.Key == ConsoleKey.Backspace && input.Length > 0)
-                    {
-                        input.Length--;
-                        Console.Write("\b \b"); // erase char from console
-                    }
-                    else if (!char.IsControl(key.KeyChar))
-                    {
-                        input.Append(key.KeyChar);
-                        Console.Write(key.KeyChar);
-                    }
-                }
-                else
-                {
-                    if (watch.ElapsedMilliseconds > timeoutMs)
-                    {
-                        Console.WriteLine();
-                        return null; // or empty string on timeout
-                    }
-                    System.Threading.Thread.Sleep(50); // small delay to reduce CPU usage
-                }
-            }
-            return input.ToString();
-        }
-
-
     }
 }

@@ -16,49 +16,44 @@ namespace Barmen
         {
             if (args.Length < 3)
             {
-                Console.WriteLine("[Pokretanje Barmen.exe nije uspjelo]");
+                Console.WriteLine("[Pokretanje Barmen.exe nije uspelo]");
                 return;
             }
 
             int barmenId = int.Parse(args[0]);
             int count = int.Parse(args[1]);
-            int udpPort = int.Parse(args[2]);  // server može ignorisati ovaj port
+            int udpPort = int.Parse(args[2]);
 
-            Console.WriteLine($"[Barmen]  WorkerId #{barmenId}");
+            Console.WriteLine($"[Barmen]  KlijentId #{barmenId}");
 
             const string serverIp = "127.0.0.1";
             const int registerPort = 5000;    // port na kojem se REGISTER prima
-            const int readyPort = 5001;    // port na kojem se PREPARE i READY razmjenjuju
+            const int readyPort = 5001;    // port na kojem se PREPARE i READY razmenjuju
 
-            // 1) Otvaramo TCP socket za registraciju
             var sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             sock.Connect(new IPEndPoint(IPAddress.Parse(serverIp), registerPort));
 
-            // 2) Pošaljemo REGISTER;{barmenId};Bartender;{udpPort}\n
             string regMsg = $"REGISTER;{barmenId};Bartender;{udpPort}\n";
             sock.Send(Encoding.UTF8.GetBytes(regMsg));
 
-            // 3) Prihvatimo odgovor REGISTERED\n
             var ackBuf = new byte[8192];
             int bytesRecvd = sock.Receive(ackBuf);
             string ack = Encoding.UTF8.GetString(ackBuf, 0, bytesRecvd).Trim();
 
             if (ack != "REGISTERED")
             {
-                Console.WriteLine($"\n[Barmen] REGISTRACIJA NEUSPJESNA: {ack}");
+                Console.WriteLine($"\n[Barmen] REGISTRACIJA NEUSPESNA: {ack}");
                 sock.Close();
                 return;
             }
 
-            Console.WriteLine("\n[Barmen] USPJESNO REGISTROVAN, CEKAM NARUDZBINE...");
+            Console.WriteLine("\n[Barmen] USPESNO REGISTROVAN, CEKAM NARUDZBINE...");
 
-            // 4) Otvaramo drugi TCP socket za razmjenu PREPARE⇄READY
             Thread.Sleep(5000);
             var orderSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             Thread.Sleep(10000);
             orderSock.Connect(new IPEndPoint(IPAddress.Parse(serverIp), readyPort));
 
-            // 5) Beskonačna petlja za PREPARE;… poruke
             while (true)
             {
                 bytesRecvd = sock.Receive(ackBuf);
@@ -68,19 +63,16 @@ namespace Barmen
                     break;
                 }
 
-                // dekodiramo liniju (skidamo whitespace i \r\n)
                 string msg = Encoding.UTF8.GetString(ackBuf, 0, bytesRecvd).Trim();
 
                 if (!msg.StartsWith("PREPARE;"))
                     continue;
 
-                // PREPARE;{tableNo};{waiterId};{base64OrderData}
                 var parts = msg.Split(new[] { ';' }, 4);
                 int tableNo = int.Parse(parts[1]);
                 int waiter = int.Parse(parts[2]);
                 string b64 = parts[3];
 
-                // 6) Decode + deserialize
                 byte[] orderData = Convert.FromBase64String(b64);
                 List<Order> ordered;
                 using (var ms = new MemoryStream(orderData))
@@ -96,7 +88,6 @@ namespace Barmen
                     Console.WriteLine($"{o.ToString()}");
                 }
 
-                // 7) Simulacija pripreme pića
                 foreach (var o in ordered)
                 {
                     o._articleStatus = ArticleStatus.INPROGRESS;
@@ -108,7 +99,6 @@ namespace Barmen
 
                 Console.WriteLine($"[Barmen] NARUDŽBINA KOMPLETIRANA STO:{tableNo} KONOBAR:{waiter}");
 
-                // 8) Javljamo serveru preko orderSock da je spremno
                 string readyMsg = $"READY;{tableNo};{waiter};pice\n";
                 orderSock.Send(Encoding.UTF8.GetBytes(readyMsg));
                 Console.WriteLine("[Barmen] Server obavješten o zavrsetku porudzbine");
