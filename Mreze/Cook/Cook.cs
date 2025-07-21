@@ -25,7 +25,7 @@ namespace Cook
             int count = int.Parse(args[1]);
             int udpPort = int.Parse(args[2]);
 
-            Console.WriteLine($"[Kuvar]  KlijentId #{cookId}");
+            Console.WriteLine($"[Kuvar]  id= #{cookId}, Port {udpPort}");
 
             const string serverIp = "127.0.0.1";
             const int serverPort = 5000;    // isti port za REGISTER i za PREPARE
@@ -51,9 +51,9 @@ namespace Cook
                     Thread.Sleep(200);
                 }
             }
-            Console.WriteLine("saljem register");
+            ;
             string regMsg = $"REGISTER;{cookId};Cook;{udpPort}\n";
-            Console.WriteLine("poslano cekam odg");
+            ;
             try { sock.Send(Encoding.UTF8.GetBytes(regMsg)); } catch (SocketException ex) { Console.WriteLine($"{ex.Message}"); }
 
             var ackBuf = new byte[8192];
@@ -61,7 +61,7 @@ namespace Cook
             try
             {
                 bytesRecvd = sock.Receive(ackBuf);
-                Console.WriteLine($"primljen odg {Encoding.UTF8.GetString(ackBuf)}");
+               
             }
             catch (SocketException ex) { Console.WriteLine($"{ex.Message}"); }
             string ack = Encoding.UTF8

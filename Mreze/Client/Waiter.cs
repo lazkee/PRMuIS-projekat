@@ -25,7 +25,7 @@ namespace Client
             int totalWaiters = int.Parse(args[1]);
             int udpPort = int.Parse(args[2]);
 
-            Console.WriteLine($"Konobar #{waiterId},  port {udpPort}");
+            Console.WriteLine($"Konobar id={waiterId},  port {udpPort}");
 
             // Postavljanje repoa i servisa za naručivanje i sto
             var waiterRepo = new WaiterRepository(totalWaiters);
@@ -68,7 +68,7 @@ namespace Client
                     }
                     else
                     {
-                        Console.WriteLine("\nUspjesno registrovan, cekam porudzbine");
+                        Console.WriteLine("\nUSPJESNO REGISTROVAN");
                     }
 
                     // Beskonacna petlja za READY;{tableNo};{waiterId}\n
@@ -109,8 +109,7 @@ namespace Client
             Thread waiterThread = new Thread(() => waiterMgmt.TakeOrReserveATable(waiterId, Domain.Enums.ClientType.Waiter));
             waiterThread.Start();
 
-            Console.WriteLine("Konobar je zatvoren. Pritisnite ENTER za kraj...");
-            Console.ReadLine();
+            
         }
     }
 }

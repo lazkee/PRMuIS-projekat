@@ -448,12 +448,15 @@ namespace Server
                                             Console.WriteLine(
                                               $"[Server] Porudzbina {tipPorudzb} za konobara #{waiterId} za sto {tableId} je gotova");
                                             notifier.NotifyOrderReady(tableId, waiterId);
-                                            Thread.Sleep(2000);
+                                            
                                             foreach(Order o in TableRepository.GetByID(tableId).TableOrders)
                                             {
+                                                o._articleStatus = ArticleStatus.SPREMNO;
+                                                Console.WriteLine(o.ToString());
                                                 o._articleStatus = ArticleStatus.ISPORUCENO;
-                                                o.ToString();
                                             }
+
+                                            
                                         }
                                         else
                                         {
@@ -561,8 +564,8 @@ namespace Server
                             Thread.Sleep(1000);
                             foreach (Order o in TableRepository.GetByID(tableNumber).TableOrders)
                             {
-                                o._articleStatus = ArticleStatus.ISPORUCENO;
-                                o.ToString();
+                                o._articleStatus = ArticleStatus.PRIPREMA;
+                                Console.WriteLine(o.ToString());
                             }
 
 

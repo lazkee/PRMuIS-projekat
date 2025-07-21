@@ -49,11 +49,11 @@ namespace Services.SendOrderForPreparationServices
                 o._tableNumber = tableNumber;
             }
 
-            var foodBatch = orders.Where(o => o.ArticleCategory == ArticleCategory.FOOD).ToList();
+            var foodBatch = orders.Where(o => o.ArticleCategory == ArticleCategory.HRANA).ToList();
             if (foodBatch.Any())
                 _foodRepo.AddOrder(foodBatch);
 
-            var drinkBatch = orders.Where(o => o.ArticleCategory == ArticleCategory.DRINK).ToList();
+            var drinkBatch = orders.Where(o => o.ArticleCategory == ArticleCategory.PICE).ToList();
             if (drinkBatch.Any())
                 _drinkRepo.AddOrder(drinkBatch);
         }

@@ -19,7 +19,7 @@ namespace Services.TakeATableServices
             _readService = readService;
             _serverSocketUdp = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             _serverSocketUdp.Bind(new IPEndPoint(IPAddress.Loopback, 4000));
-            Console.WriteLine($"UDP TableListener pokrenut na portu {listenPort}.");
+           
 
             _remoteEp = new IPEndPoint(IPAddress.Any, 0);
             _managerRepository = managerRepo;
@@ -55,7 +55,7 @@ namespace Services.TakeATableServices
                             _managerRepository.AddNewReservationForServer(reservationNumber, freeTable);
                         }
                        
-                        Console.WriteLine($"[Server] Sto broj{freeTable} je sada zauzet");
+                        Console.WriteLine($"[Server] Sto broj {freeTable} je sada zauzet");
 
                     }
                     else

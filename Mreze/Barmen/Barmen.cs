@@ -24,7 +24,7 @@ namespace Barmen
             int count = int.Parse(args[1]);
             int udpPort = int.Parse(args[2]);
 
-            Console.WriteLine($"[Barmen]  KlijentId #{barmenId}");
+            Console.WriteLine($"[Barmen] id#{barmenId}, Port {udpPort} ");
 
             const string serverIp = "127.0.0.1";
             const int registerPort = 5000;    // port na kojem se REGISTER prima
@@ -90,10 +90,10 @@ namespace Barmen
 
                 foreach (var o in ordered)
                 {
-                    o._articleStatus = ArticleStatus.INPROGRESS;
+                    o._articleStatus = ArticleStatus.PRIPREMA;
                     Console.WriteLine($"[Barmen] Priprema u toku : {o._articleName}");
                     Thread.Sleep(new Random().Next(500, 2000));
-                    o._articleStatus = ArticleStatus.FINISHED;
+                    o._articleStatus = ArticleStatus.SPREMNO;
                     Console.WriteLine($"[Barmen] Priprema gotova: {o._articleName}");
                 }
 

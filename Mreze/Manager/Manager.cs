@@ -18,9 +18,7 @@ namespace Manager
                 Console.WriteLine($"[Greska] {((Exception)e.ExceptionObject).Message}");
             };
 
-            Console.WriteLine($"Menadzer broj #{args[1]},");
-            Console.WriteLine($"KlijentId #{args[0]}");
-            Console.WriteLine($"Port #{args[2]}");
+            Console.WriteLine($"Menadzer id={args[1]}, port {args[2]}");
 
             int.TryParse(args[0], out int managerId);
             int.TryParse(args[1], out int managerNumber);

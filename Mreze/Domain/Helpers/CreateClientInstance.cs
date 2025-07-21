@@ -56,13 +56,13 @@ namespace Server
                         "..", "..", "..", "Manager", "bin", "Debug", "Manager.exe");
                     break;
                 default:
-                    throw new ArgumentException($"Nepoznat tip klijenta: {tipKlijenta}", nameof(tipKlijenta));
+                    throw new ArgumentException($"[Server]Nepoznat tip klijenta: {tipKlijenta}", nameof(tipKlijenta));
             }
 
             // Provjera da li fajl zaista postoji
             if (!File.Exists(clientPath))
             {
-                Console.WriteLine($"Ne mogu pronaći izvršni fajl na {clientPath}");
+                Console.WriteLine($"[Server]Ne mogu pronaći izvršni fajl na {clientPath}");
                 return;
             }
 
@@ -79,7 +79,7 @@ namespace Server
                     UseShellExecute = true
                 };
                 Process.Start(startInfo);
-                Console.WriteLine($"Pokrenut klijent #{clientId} kao {tipKlijenta} na portu {port}");
+                Console.WriteLine($"[Server]Pokrenut klijent #{clientId} kao {tipKlijenta} na portu {port}");
             }
         }
     }
