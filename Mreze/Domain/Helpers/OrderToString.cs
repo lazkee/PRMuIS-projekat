@@ -10,8 +10,8 @@ namespace Domain.Helpers
 
         private string Convert(List<Order> orders)
         {
-            sb.Append("\nWhat is ordered:\n");
-            sb.Append("\"| Article name   | Article category | Article price |   status   |\"");
+            sb.Append("\nNarudzba:\n");
+            sb.Append("\"|  Naziv artikla | Kategorija artikla | Cijena artikla |   Status   |\"");
             foreach (Order o in orders)
             {
                 sb.Append(o.ToString());
@@ -19,6 +19,12 @@ namespace Domain.Helpers
             }
 
             return sb.ToString();
+            
+            
+
+
+
+
         }
     }
 }

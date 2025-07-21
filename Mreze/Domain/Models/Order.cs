@@ -2,8 +2,8 @@
 
 namespace Domain.Models
 {
-    public enum ArticleCategory { DRINK, FOOD }
-    public enum ArticleStatus { INPROGRESS, FINISHED, DELIVERED };
+    public enum ArticleCategory { PICE, HRANA }
+    public enum ArticleStatus { PRIPREMA, SPREMNO, ISPORUCENO };
 
     [Serializable]
     public class Order
@@ -36,7 +36,7 @@ namespace Domain.Models
         public override string ToString()
         {
             //string ret = "| Article name   | Article category | Article price |   status   |\n";
-            return $"| {_articleName,-14} | {_articleCategory,-16} | {_price,-13} | {_articleStatus,-10} |";
+            return $"| {_articleName,-14} | {_articleCategory,-18} | {_price,-14} | {_articleStatus,-10} |";
         }
 
     }

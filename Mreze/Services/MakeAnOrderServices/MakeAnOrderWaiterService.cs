@@ -44,7 +44,7 @@ namespace Services.MakeAnOrderServices
             {
 
                 Console.WriteLine("\n1. Cevapi");
-                Console.WriteLine("2. Burek sa sirom");
+                Console.WriteLine("2. Burek ");
                 Console.WriteLine("3. Karadjordjeva");
                 Console.WriteLine("4. Pica");
                 Console.WriteLine("5. Rakija");
@@ -70,44 +70,45 @@ namespace Services.MakeAnOrderServices
                         switch (br_narudzbine)
                         {
                             case 1:
-                                orders.Add(new Order("Cevapi", ArticleCategory.FOOD, 1200, ArticleStatus.INPROGRESS, WaiterID, brojSlobodnogStola));
+                                orders.Add(new Order("Cevapi", ArticleCategory.HRANA, 1200, ArticleStatus.PRIPREMA, WaiterID, brojSlobodnogStola));
                                 break;
                             case 2:
-                                orders.Add(new Order("Burek sa sirom", ArticleCategory.FOOD, 600, ArticleStatus.INPROGRESS, WaiterID, brojSlobodnogStola));
+                                orders.Add(new Order("Burek ", ArticleCategory.HRANA, 600, ArticleStatus.PRIPREMA, WaiterID, brojSlobodnogStola));
                                 break;
                             case 3:
-                                orders.Add(new Order("Karadjordjeva", ArticleCategory.FOOD, 1350, ArticleStatus.INPROGRESS, WaiterID, brojSlobodnogStola));
+                                orders.Add(new Order("Karadjordjeva", ArticleCategory.HRANA, 1350, ArticleStatus.PRIPREMA, WaiterID, brojSlobodnogStola));
                                 break;
                             case 4:
-                                orders.Add(new Order("Pica", ArticleCategory.FOOD, 1100, ArticleStatus.INPROGRESS, WaiterID, brojSlobodnogStola));
+                                orders.Add(new Order("Pica", ArticleCategory.HRANA, 1100, ArticleStatus.PRIPREMA, WaiterID, brojSlobodnogStola));
                                 break;
                             case 5:
-                                orders.Add(new Order("Rakija", ArticleCategory.DRINK, 240, ArticleStatus.INPROGRESS, WaiterID, brojSlobodnogStola));
+                                orders.Add(new Order("Rakija", ArticleCategory.HRANA, 240, ArticleStatus.PRIPREMA, WaiterID, brojSlobodnogStola));
                                 break;
                             case 6:
-                                orders.Add(new Order("Kisela voda", ArticleCategory.DRINK, 170, ArticleStatus.INPROGRESS, WaiterID, brojSlobodnogStola));
+                                orders.Add(new Order("Kisela voda", ArticleCategory.HRANA, 170, ArticleStatus.PRIPREMA, WaiterID, brojSlobodnogStola));
                                 break;
                             case 7:
-                                orders.Add(new Order("Koka kola", ArticleCategory.DRINK, 250, ArticleStatus.INPROGRESS, WaiterID, brojSlobodnogStola));
+                                orders.Add(new Order("Koka kola", ArticleCategory.HRANA, 250, ArticleStatus.PRIPREMA, WaiterID, brojSlobodnogStola));
                                 break;
                             default:
-                                Console.WriteLine("Invalid instruction. Please try again.");
+                                Console.WriteLine("Neispravan unos. Pokusajte ponovo");
                                 continue;
                         }
                     }
                     else
                     {
-                        Console.WriteLine("Invalid input. Please enter a number.");
+                        Console.WriteLine("Neispravan unos. Unesite broj.");
                     }
                 }
 
-                Console.WriteLine("\nWhat is ordered:\n");
-                Console.WriteLine("| Article name   | Article category | Article price |   status   |");
+                Console.WriteLine("\nŠta je poručeno:\n");
+                Console.WriteLine("| Naziv artikla    | Kategorija artikla     | Cena artikla    |   Status   |");
+
                 foreach (Order order in orders)
                 {
                     Console.WriteLine(order);
                 }
-                //clientSocket.Connect(serverEp);
+                
                 byte[] tableData;
                 using (MemoryStream ms = new MemoryStream())
                 {
@@ -124,12 +125,7 @@ namespace Services.MakeAnOrderServices
                     tableData = ms.ToArray();
                 }
 
-                //byte[] waiterIdData = new byte[4];
-                //waiterIdData = Encoding.UTF8.GetBytes(WaiterID.ToString());
-                //SendMessage(clientSocket, waiterIdData);
-
-
-                //SendMessage(clientSocket, tableData);
+                
                 string base64msg = Convert.ToBase64String(tableData);
                 string message = $"ORDER;{WaiterID};{brojSlobodnogStola};{base64msg}\n";
                 var bytes = Encoding.UTF8.GetBytes(message);
@@ -137,7 +133,7 @@ namespace Services.MakeAnOrderServices
                 Console.WriteLine($"[Waiter] Poslato UDP ORDER: Konobar #{WaiterID}, Broj stola #{brojSlobodnogStola}, Broj artikala:{orders.Count}");
 
 
-                //Console.WriteLine($"\nSuccessfully sent orders and WaiterID: {WaiterID} to the server.");
+               
 
                 iWaiterRepository.SetWaiterState(WaiterID, false);
 
@@ -150,115 +146,11 @@ namespace Services.MakeAnOrderServices
             {
                 Console.WriteLine($"Error: {ex.Message}");
             }
-            finally
-            {
-                //udpOrderClient.Close();
-            }
+            
         }
 
 
-        /*public void MakeAnOrder(int brojSlobodnogStola, int brojGostiju, int WaiterID)
-        {
-            Socket clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            IPEndPoint serverEp = new IPEndPoint(IPAddress.Loopback, 15000);
-
-            clientSocket.Connect(serverEp);
-            //Console.WriteLine("Connected to the server!");
-            Console.WriteLine("\n1. Cevapi");
-            Console.WriteLine("2. Burek sa sirom");
-            Console.WriteLine("3. Karadjordjeva");
-            Console.WriteLine("4. Pica");
-            Console.WriteLine("5. Rakija");
-            Console.WriteLine("6. Kisela voda");
-            Console.WriteLine("7. Koka kola");
-            Console.WriteLine("0. End the order");
-
-            List<Order> orders = new List<Order>();
-            int br_narudzbine;
-            while (true)
-            {
-                Console.Write("Order Something: ");
-                string poruka = Console.ReadLine();
-
-                if (int.TryParse(poruka, out br_narudzbine))
-                {
-                    if (br_narudzbine > 0)
-                    {
-                        switch (br_narudzbine)
-                        {
-                            case 1:
-                                orders.Add(new Order("Cevapi", ArticleCategory.FOOD, 1200, ArticleStatus.INPROGRESS));
-                                break;
-                            case 2:
-                                orders.Add(new Order("Burek sa sirom", ArticleCategory.FOOD, 600, ArticleStatus.INPROGRESS));
-                                break;
-                            case 3:
-                                orders.Add(new Order("Karadjordjeva", ArticleCategory.FOOD, 1350, ArticleStatus.INPROGRESS));
-                                break;
-                            case 4:
-                                orders.Add(new Order("Pica", ArticleCategory.FOOD, 1100, ArticleStatus.INPROGRESS));
-                                break;
-                            case 5:
-                                orders.Add(new Order("Rakija", ArticleCategory.DRINK, 240, ArticleStatus.INPROGRESS));
-                                break;
-                            case 6:
-                                orders.Add(new Order("Kisela voda", ArticleCategory.DRINK, 170, ArticleStatus.INPROGRESS));
-                                break;
-                            case 7:
-                                orders.Add(new Order("Koka kola", ArticleCategory.DRINK, 250, ArticleStatus.INPROGRESS));
-                                break;
-                        }
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-            }
-
-            Console.WriteLine("\nWhat is ordered:\n");
-            Console.WriteLine("| Article name   | Article category | Article price |   status   |");
-            foreach (Order order in orders)
-            {
-                Console.WriteLine(order);
-            }
-
-            //Console.ReadKey();
-
-            byte[] dataBuffer = new byte[1024];
-            try
-            {
-                using (MemoryStream ms = new MemoryStream())
-                {
-                    BinaryFormatter bf = new BinaryFormatter();
-                    bf.Serialize(ms, new Table(brojSlobodnogStola, brojGostiju, TableState.BUSY, orders));
-                    dataBuffer = ms.ToArray();
-                }
-
-                clientSocket.Send(dataBuffer);
-                //Console.WriteLine($"Successfully sent {dataBuffer.Length} bytes to the server. Table number: {br_narudzbine} number of guests: {brojGostiju}");
-
-               /* dataBuffer = Encoding.UTF8.GetBytes(WaiterID.ToString());
-                clientSocket.Send(dataBuffer);
-                Console.WriteLine($"Successfully sent {dataBuffer.Length} bytes to the server. WaiterID: {WaiterID} and {dataBuffer}");
-                iWaiterRepository.SetWaiterState(WaiterID, false);
-                Console.WriteLine($"\nWaiter {WaiterID} is not busy anymore\n");
-
-                iWaiterRepository.SetWaiterState(WaiterID, false);
-                Console.WriteLine($"\nWaiter {WaiterID} is not busy anymore\n");
-            }
-            catch (SocketException ex)
-            {
-                Console.WriteLine($"Socket error: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error: {ex.Message}");
-            }
-
-            clientSocket.Close();
-            //Console.ReadKey();
-        }*/
+       
 
 
 

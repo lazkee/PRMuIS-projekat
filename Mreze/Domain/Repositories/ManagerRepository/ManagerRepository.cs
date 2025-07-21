@@ -91,17 +91,17 @@ namespace Domain.Repositories.ManagerRepository
                 {
                     int tableNum = int.Parse(responseText.Split(';')[1]);
                     _reservationNumber[key_value] = new Reservation { TableNumber = tableNum, ReservationTime = DateTime.Now };
-                    Console.WriteLine($"Table number {tableNum} is reserved, your reserve number is {key_value}!\n");
+                    Console.WriteLine($"Sto broj {tableNum} je rezervisan, broj rezervacije {key_value}!\n");
                     ++key_value;
                     return;
                 }
                 else if (responseText == "TABLE_BUSY")
                 {
-                    Console.WriteLine("All tables are busy at the moment!\n");
+                    Console.WriteLine("Svi stolovi su zauzeti trenutno!\n");
                     return;
                 }
 
-                Console.WriteLine("Unexpected server response.\n");
+                Console.WriteLine("Doslo je do greske u komunikacije sa serverom.\n");
                 return;
             }
         }

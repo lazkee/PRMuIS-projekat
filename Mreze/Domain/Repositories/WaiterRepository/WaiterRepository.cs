@@ -39,7 +39,7 @@ namespace Domain.Repositories.WaiterRepository
                         _initialized = true;
                     }
                 }
-                Console.WriteLine($"Repo created in process {System.Diagnostics.Process.GetCurrentProcess().Id}");
+                //Console.WriteLine($"Repo created in process {System.Diagnostics.Process.GetCurrentProcess().Id}");
             }
         }
 
@@ -63,21 +63,21 @@ namespace Domain.Repositories.WaiterRepository
         }
 
         // --- Dodatne metode za stanje konobara (FREE/BUSY) ---
-        /// <summary>Je li konobar trenutno zauzet (true) ili slobodan (false)?</summary>
+       
         public bool GetWaiterState(int waiterId)
         {
             ValidateId(waiterId);
             return _waiterBusy[waiterId];
         }
 
-        /// <summary>Postavi stanje konobara: true=zauzet, false=slobodan.</summary>
+        
         public void SetWaiterState(int waiterId, bool isBusy)
         {
             ValidateId(waiterId);
             _waiterBusy[waiterId] = isBusy;
         }
 
-        /// <summary>Sve trenutne parove (waiterId → busy) vraća kao novi rječnik.</summary>
+        
         public Dictionary<int, bool> GetAllWaiterStates()
         {
             return new Dictionary<int, bool>(_waiterBusy);

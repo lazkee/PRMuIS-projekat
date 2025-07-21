@@ -7,9 +7,7 @@ using Domain.Repositories.WaiterRepository;
 
 namespace Server
 {
-    /// <summary>
-    /// Pokreće instancu navedenog tipa klijenta i inicijalizuje repozitorijum za konobare.
-    /// </summary>
+    
     public class CreateClientInstance
     {
         private IWaiterRepository waiterRepository;
@@ -17,12 +15,7 @@ namespace Server
         private int _nextPort = 6000;       // globalni port koji se inkrementira
         private int _nextClientId = 1;
 
-        /// <summary>
-        /// Pokreće zadati broj ekstenzija klijenta tipa tipKlijenta.
-        /// Za konobare inicijalizuje lokalni repository.
-        /// </summary>
-        /// <param name="brojKlijenata">Broj klijenata koje treba pokrenuti.</param>
-        /// <param name="tipKlijenta">Tip klijenta (Waiter, Cook, Bartender).</param>
+        
         public void BrojITipKlijenta(int brojKlijenata, ClientType tipKlijenta)
         {
             PokreniKlijente(brojKlijenata, tipKlijenta);
@@ -37,9 +30,7 @@ namespace Server
             }
         }
 
-        /// <summary>
-        /// Pokretanje procesa za svaki klijent .exe odgovarajućeg tipa i argumenata.
-        /// </summary>
+        
         private void PokreniKlijente(int brojKlijenata, ClientType tipKlijenta)
         {
             

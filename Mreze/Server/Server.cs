@@ -27,7 +27,8 @@ namespace Server
     {
         static void Main(string[] args)
         {
-            // 1) Inicijalizacija repozitorijuma i servisa
+            Console.WriteLine("Server je pokrenut. Pritisni ENTER za zaustavljanje.");
+            //  Inicijalizacija repozitorijuma i servisa
             IClientDirectory clientDirectory = new ClientDirectory();
             var notificationService = new NotificationService(clientDirectory);
 
@@ -37,7 +38,7 @@ namespace Server
                 clientDirectory,
                 foodRepo,
                 drinkRepo);
-            // 3.3) TCP listener za registraciju i notifikacije na portu 5000
+            // TCP listener za registraciju i notifikacije 
             new Thread(() => StartClientListener(
                 clientDirectory,
                 notificationService,
@@ -49,33 +50,24 @@ namespace Server
             }.Start();
             Console.WriteLine("[Server] TCP ClientListener pokrenut na portu 5000.");
 
-            // 3.1) UDP listener za raspodelu stolova
+            // UDP listener za raspodelu stolova
             var readService = new ServerReadTablesService();
-            var managerRepository = new ManagerRepository(1);       //nebitan broj, samo se stolovi koriste
+            var managerRepository = new ManagerRepository(1);       
             var tableService = new TakeATableServerService(readService, managerRepository, listenPort: 4000);
             new Thread(tableService.TakeATable) { IsBackground = true }.Start();
             Console.WriteLine("[Server] UDP TableListener pokrenut na portu 4000.");
 
             CalculateTheBill kasa = new CalculateTheBill();
             new Thread(() => StartBillListener(kasa)) { IsBackground = true }.Start();
-            // 3.11) UDP listener za otkazivanje rezervacija koje su istekle na portu 4001 (menadzer salje serveru da je rezervacija otkazana - istekla, ako u roku od 10 sekundi ne dodju gosti)
+            // UDP listener za otkazivanje rezervacija koje su istekle na portu 4001 (menadzer salje serveru da je rezervacija otkazana - istekla, ako u roku od 10 sekundi ne dodju gosti)
 
             var releaseATableService = new ReleaseATableServerService(readService, 4001);
             releaseATableService.ReleaseATable();   //Listener thread se nalazi u servisu (ne pravi se u Serveru). Nema neke razlike ali ovako je mozda cistije
             //I da napravimo jos 2 servisa za ove dole TCP sto su nam static
             Console.WriteLine("[Server] UDP TableCancelationListener pokrenut na portu 4001.");
 
-            // 3.12) bice UDP listener za goste koji su stigli sa rezervacijom na portu 4002 (menadzer salje serveru da su stigli)
-            /*
-            IWaiterRepository waiterRepo = new WaiterRepository(3);
 
-            new Thread(() => StartGuestsArrivedListener(4002, waiterRepo, clientDirectory)) { IsBackground = true }.Start();
-            Console.WriteLine("[Server] GuestsArrivedListener pokrenut na portu 4002.");
-            //ne radimo ipak na ovaj nacin*/
-
-            // 3.13) UDP listener kada konobar zatrazuje proveru rezervacije
-
-            //var reservationServer = new WaiterReservationValidationServerService(managerRepository);
+            // UDP listener kada konobar zatrazuje proveru rezervacije
             new Thread(() => ReservationVerificationServer.Start(managerRepository))
             {
                 IsBackground = true
@@ -83,17 +75,12 @@ namespace Server
 
             Console.WriteLine("[Server] UDP ReservationVerificationServer started on port 4003.");
 
-            // 3.2) TCP listener za porudžbine na portu 15000
-            //new Thread(() => StartOrderListener(prepService, tcpPort: 15000)) { IsBackground = true }
-            //    .Start();
-            //Console.WriteLine("[Server] TCP OrderListener pokrenut na portu 15000.");
+            //  TCP listener za porudžbine na portu 15000
+           
             new Thread(() => StartOrderListener(prepService, 15000)) { IsBackground = true }.Start();
-            Console.WriteLine("[Server] UDP OrderListener pokrenut na portu 15000.");
+            Console.WriteLine("[Server] TCP OrderListener pokrenut na portu 15000.");
 
-            // 4) Držimo main nit živom
-            Console.WriteLine("Server je pokrenut. Pritisni ENTER za zaustavljanje.");
-
-            // 2) Pokretanje i registrovanje klijentskih procesa
+            //Pokretanje i registrovanje klijentskih procesa
             var createClientInstance = new CreateClientInstance();
             createClientInstance.BrojITipKlijenta(2, ClientType.Waiter);
             createClientInstance.BrojITipKlijenta(1, ClientType.Cook);
@@ -101,83 +88,6 @@ namespace Server
             createClientInstance.BrojITipKlijenta(1, ClientType.Manager);
             Console.ReadLine();
         }
-
-        /// <summary>
-        /// Listener koji prima binarni protokol: length-prefixed waiterId i serijalizovani Table.
-        /// Deserijalizuje ih, loguje kao Base64 i potom prosleđuje prepService.SendOrder.
-        /// gornji thread pravi novi thread, da on moze da obavlja posao bez da blokira ostale
-        /// </summary>
-        /// 
-
-        /*public static class ReservationVerificationServer
-        {
-            public static void Start(IManagerRepository managerRepo)
-            {
-                try
-                {
-                    Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-                    EndPoint localEndPoint = new IPEndPoint(IPAddress.Loopback, 4003);
-                    socket.Bind(localEndPoint);
-                    Console.WriteLine("UDP Reservation Server is running on port 4003...");
-
-                    //EndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
-                    //byte[] buffer = new byte[1024];
-
-
-                    while (true)
-                    {
-                        try
-                        {
-                            EndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
-                            byte[] buffer = new byte[1024];
-
-                            int received = socket.ReceiveFrom(buffer, ref remoteEndPoint);
-                            if (received <= 0)
-                                continue;
-
-                            string message = Encoding.UTF8.GetString(buffer, 0, received);
-
-                            if (int.TryParse(message, out int reservationCode))
-                            {
-                                Console.WriteLine($"[ReservationServer] Received reservation code: {reservationCode}");
-
-                                bool isValid = managerRepo.CheckReservation(reservationCode);
-                                int tableNumber = 0;
-                                if (isValid)
-                                {
-                                    tableNumber = managerRepo.GetTableNumber(reservationCode);
-                                    managerRepo.RemoveReservation(reservationCode);
-                                }
-
-                                string response = isValid
-                                    ? $"OK;{tableNumber}"
-                                    : "ERROR;Invalid reservation";
-
-                                byte[] responseBytes = Encoding.UTF8.GetBytes(response);
-                                socket.SendTo(responseBytes, remoteEndPoint);
-                            }
-                            else
-                            {
-                                Console.WriteLine("[ReservationServer] Invalid message received.");
-                            }
-                        }
-                        catch (SocketException se)
-                        {
-                            Console.WriteLine($"[ReservationServer] Socket exception: {se.Message}");
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"[ReservationServer] Unexpected error: {ex}");
-                        }
-                    }
-
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[ReservationServer] Error: {ex.Message}");
-                }
-            }
-        }*/
 
         public static class ReservationVerificationServer
         {
@@ -187,14 +97,12 @@ namespace Server
                 {
                     Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
 
-                    // Koristi IPAddress.Any umesto Loopback da podrži sve lokalne konekcije
+                   
                     EndPoint localEndPoint = new IPEndPoint(IPAddress.Any, 4003);
                     socket.Bind(localEndPoint);
 
                     Console.WriteLine("[ReservationServer] UDP Reservation Server is running on port 4003...");
 
-                    // Opcionalno: dodaj timeout da se ReceiveFrom ne blokira zauvek
-                    // socket.ReceiveTimeout = 10000;
 
                     while (true)
                     {
@@ -220,14 +128,13 @@ namespace Server
                                     managerRepo.RemoveReservation(reservationCode);
                                     Console.WriteLine($"[ReservationServer] Valid reservation #{reservationCode}, assigned table {tableNumber}");
 
-                                    // Posalji obavestenje menadzeru na port 4010
                                     try
                                     {
                                         string managerMessage = $"RESERVATION_USED;{reservationCode}";
                                         byte[] managerData = Encoding.UTF8.GetBytes(managerMessage);
 
                                         Socket managerNotifySocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-                                        IPEndPoint managerEndpoint = new IPEndPoint(IPAddress.Loopback, 4010); // ili IP menadzera ako nije lokalno
+                                        IPEndPoint managerEndpoint = new IPEndPoint(IPAddress.Loopback, 4010); 
 
                                         managerNotifySocket.SendTo(managerData, managerEndpoint);
                                         managerNotifySocket.Close();
@@ -298,14 +205,10 @@ namespace Server
                             Console.WriteLine($"[Server] Gosti su stigli za rezervaciju #{reservationNumber} i broj stola {tableNumber}.");
 
 
-
-                            // Ovde možeš dodati logiku za označavanje da su gosti stigli
-                            // ili ažurirati bazu / stanje servera / osloboditi timer itd.
-
                             int freeWaiterId = -1;
                             foreach (var kvp in waiterRepo.GetAllWaiterStates())
                             {
-                                if (!kvp.Value) // means waiter is FREE
+                                if (!kvp.Value)
                                 {
                                     freeWaiterId = kvp.Key;
                                     break;
@@ -321,13 +224,9 @@ namespace Server
                                 waiterRepo.SetWaiterState(freeWaiterId, true);
                                 Console.WriteLine($"[Server] Konobar #{freeWaiterId} dodeljen za rezervaciju #{reservationNumber}.");
 
-                                // Dummy data for this example — should be fetched from reservation
-                                //int brojStola = reservationNumber; // or from reservation data
-                                //ITableRepository tableRepo = new TableRepository();
+                              
                                 int brojStola = 1;
 
-                                //var waiter = clientDirectory.GetById(freeWaiterId);
-                                //IPEndPoint waiterEndPoint = waiter.Endpoint;
                                 int brojGostiju = 4;
                                 string waiterMessage = $"MAKE_ORDER:{brojStola}:{brojGostiju}:{tableNumber}";
                                 byte[] data1 = Encoding.UTF8.GetBytes(waiterMessage);
@@ -369,11 +268,11 @@ namespace Server
                 ProtocolType.Tcp);
             listenSock.Bind(new IPEndPoint(IPAddress.Any, 5003));
             listenSock.Listen(100);
-            Console.WriteLine($"[Server] Čeka BILL zahteve na portu 5003");
+            Console.WriteLine($"[Server] Čeka zahteve za racun na portu 5003");
 
             while (true)
             {
-                // 1) Prihvatamo novu konekciju od klijenta
+                // Prihvatamo novu konekciju od klijenta
                 var client = listenSock.Accept();
                 client.Blocking = true;
 
@@ -384,7 +283,7 @@ namespace Server
                         var buf = new byte[8192];
                         int n;
 
-                        // 2) U petlji primamo i obrađujemo sve poruke na ovoj konekciji
+                        //  U petlji primamo i obrađujemo sve poruke na ovoj konekciji
                         while ((n = client.Receive(buf)) > 0)
                         {
                             var line = Encoding.UTF8.GetString(buf, 0, n).Trim();
@@ -400,6 +299,7 @@ namespace Server
                                 Console.WriteLine($"[Server] {poruka}");
                                 // Pošaljemo odgovor natrag klijentu
                                 client.Send(Encoding.UTF8.GetBytes(poruka + "\n"));
+
 
                                 // Očistimo sto
 
@@ -442,7 +342,7 @@ namespace Server
         NotificationService notifier,
         int registerPort,
         int readyPort
-    )
+         )
         {
             // 1) Kreiramo dva ne‑blokirajuća TCP soketa: jedan za REGISTER, jedan za READY
             var registerSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -455,8 +355,8 @@ namespace Server
             readySock.Listen(100);
             readySock.Blocking = false;
 
-            Console.WriteLine($"[Server] REGISTER socket na portu {registerPort}");
-            Console.WriteLine($"[Server] READY    socket na portu {readyPort}");
+            Console.WriteLine($"[Server] Socket za registraciju na portu {registerPort}");
+            Console.WriteLine($"[Server] Socket za obavjestenja o gotovim porudzbinama na portu {readyPort}");
 
             try
             {
@@ -465,10 +365,10 @@ namespace Server
                     var readList = new List<Socket> { registerSock, readySock };
                     var errorList = new List<Socket> { registerSock, readySock };
 
-                    // 3) Select čeka do 1 sekunde na događaje za čitanje ili greške
+                    // Select čeka do 1 sekunde na događaje za čitanje ili greške
                     Socket.Select(readList, null, errorList, 1000);
 
-                    // 4) Obrada svakog soketa koji je spreman
+                    //  Obrada svakog soketa koji je spreman
                     foreach (var s in readList)
                     {
                         if (s == registerSock)
@@ -548,6 +448,12 @@ namespace Server
                                             Console.WriteLine(
                                               $"[Server] Porudzbina {tipPorudzb} za konobara #{waiterId} za sto {tableId} je gotova");
                                             notifier.NotifyOrderReady(tableId, waiterId);
+                                            Thread.Sleep(2000);
+                                            foreach(Order o in TableRepository.GetByID(tableId).TableOrders)
+                                            {
+                                                o._articleStatus = ArticleStatus.ISPORUCENO;
+                                                o.ToString();
+                                            }
                                         }
                                         else
                                         {
@@ -568,7 +474,7 @@ namespace Server
                         }
                     }
 
-                    // 5) Obrada grešaka na soketima
+                    //  Obrada grešaka na soketima
                     if (errorList.Count > 0)
                     {
                         Console.WriteLine($"[Server] Detektovano {errorList.Count} grešaka na soketima, zatvaram ih...");
@@ -593,38 +499,37 @@ namespace Server
                 ISendOrderForPreparation prepService,
                 int tcpPort)
         {
-            // 1) Kreiramo i pokrećemo TCP server-socket
+            
             var orderSocket = new Socket(
                 AddressFamily.InterNetwork,
                 SocketType.Stream,
                 ProtocolType.Tcp);
             orderSocket.Bind(new IPEndPoint(IPAddress.Any, tcpPort));
-            orderSocket.Listen(backlog: 10);  // obavezno pozovite Listen
-
+            orderSocket.Listen(backlog: 10);  
             Console.WriteLine($"[Server] Čeka ORDER poruke na TCP portu {tcpPort}...");
 
             while (true)
             {
-                // 2) Prihvatamo novu konekciju
+                
                 var client = orderSocket.Accept();
 
                 new Thread(() =>
                 {
                     try
                     {
-                        // 3) Primamo celu poruku (ORDER;waiter;table;base64…\n)
+                        
                         var buffer = new byte[8192];
                         int bytesReceived;
                         while ((bytesReceived = client.Receive(buffer)) > 0)
                         {
                             if (bytesReceived <= 0) return;
 
-                            // 4) Parsiramo tekst
+                            
                             var line = Encoding.UTF8
                                 .GetString(buffer, 0, bytesReceived)
-                                .Trim();  // uklanja CR/LF i razmake
+                                .Trim();  
 
-                            // očekujemo tačno 4 dela
+                            
                             // ORDER;{waiterId};{tableNumber};{base64…}
                             var parts = line.Split(new[] { ';' }, 4);
                             if (parts.Length != 4 || parts[0] != "ORDER")
@@ -637,10 +542,10 @@ namespace Server
                             int tableNumber = int.Parse(parts[2]);
                             string b64 = parts[3];
 
-                            // 5) Base64 → bajtovi
+                            
                             byte[] tableData = Convert.FromBase64String(b64);
 
-                            // 6) Deserijalizacija u objekat Table
+                            // Deserijalizacija
                             Domain.Models.Table table;
                             using (var ms = new MemoryStream(tableData))
                             {
@@ -653,8 +558,15 @@ namespace Server
                             Console.WriteLine(
                                 $"[Server] Porudzbina od konobara {waiterId} za sto {table.TableNumber}, " +
                                 $"{table.TableOrders.Count} stavki.");
+                            Thread.Sleep(1000);
+                            foreach (Order o in TableRepository.GetByID(tableNumber).TableOrders)
+                            {
+                                o._articleStatus = ArticleStatus.ISPORUCENO;
+                                o.ToString();
+                            }
 
-                            // 7) Prosleđujemo u servis
+
+                            //  Prosledjujemo u servis
                             prepService.SendOrder(
                                 waiterId,
                                 table.TableNumber,

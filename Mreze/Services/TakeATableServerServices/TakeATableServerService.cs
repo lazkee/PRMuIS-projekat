@@ -57,7 +57,9 @@ namespace Services.TakeATableServices
                         {
                             _managerRepository.AddNewReservationForServer(reservationNumber, freeTable);
                         }
+                       
                         Console.WriteLine($"[Server] Sto broj{freeTable} je sada zauzet");
+
                     }
                     else
                     {

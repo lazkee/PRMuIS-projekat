@@ -47,7 +47,7 @@ namespace Services.TakeATableClientServices
             if (resp.StartsWith("TABLE_FREE;"))
             {
                 int tableNum = int.Parse(resp.Split(';')[1]);
-                Console.WriteLine($"Sto broj {tableNum} je slobodan!");
+                Console.WriteLine($"Gosti smjesteni za sto broj {tableNum}!");
                 _orderService.MakeAnOrder(tableNum, numGuests, waiterId);
 
             }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Domain.Models
 {
@@ -60,12 +61,13 @@ namespace Domain.Models
         public override string ToString()
         {
             string ret = "\n------------------------------------------------------------------\n";
-            ret += "|    Table number    |    Number of guests    |    Table state   |\n";
+            ret += "|    Broj stola      |    Broj gostiju        |    Stanje stola   |\n";
             ret += $"|    {_tableNumber,-12}    |    {_capacity,-16}    |    {_tableState,-11}   |\n";
             ret += "------------------------------------------------------------------\n";
-            ret += "|\t\t\t     ORDERS\t\t\t\t |\n";
+            ret += "|                            PORUDŽBINE                            |\n";
             ret += "------------------------------------------------------------------\n";
-            ret += "| Article name   | Article category | Article price |   status   |\n";
+            ret += "| Naziv artikla    | Kategorija artikla     | Cena artikla    |   Status   |\n";
+
             foreach (Order order in _orders)
             {
                 ret += order.ToString() + "\n";
