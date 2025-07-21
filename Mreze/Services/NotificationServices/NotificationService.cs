@@ -13,12 +13,12 @@ namespace Services.NotificationServices
             _directory = directory;
         }
 
-        public void NotifyOrderReady(int tableId, int waiterId)
+        public void NotifyOrderReady(int tableId, int waiterId, string tipPorudzbine)
         {
             var waiter = _directory.GetById(waiterId);
             if (waiter != null)
             {
-                var msg = $"READY;{tableId};{waiterId}\n";
+                var msg = $"READY;{tableId};{waiterId};{tipPorudzbine}\n";
                 var data = Encoding.UTF8.GetBytes(msg);
                 waiter.Socket.Send(data);
             }

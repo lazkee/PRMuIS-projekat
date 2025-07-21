@@ -91,10 +91,11 @@ namespace Client
                         {
                             var parts = line.Split(';');
                             int tableNo = int.Parse(parts[1]);
+                            string tipPorudzbine = parts[2];
                             Console.WriteLine($"Porudžbina za sto {tableNo} je spremna! Nosim…");
                             Thread.Sleep(1500);
-                            Console.WriteLine($"Porudžbina za sto {tableNo} je dostavljena.");
-                            orderSock.Send(Encoding.UTF8.GetBytes($"DELIVERED;{tableNo}"));
+                            Console.WriteLine($"Porudžbina {tipPorudzbine} za sto {tableNo} je dostavljena.");
+                            orderSock.Send(Encoding.UTF8.GetBytes($"DELIVERED;{tableNo};{tipPorudzbine}"));
 
                         }
 

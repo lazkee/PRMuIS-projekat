@@ -21,6 +21,7 @@ using Services.ServerServices;
 using Services.TakeATableServices;
 using Domain.Helpers;
 using Domain.Repositories.TableRepository;
+using System.Linq;
 namespace Server
 {
     class Server
@@ -446,9 +447,11 @@ namespace Server
 
                                             Console.WriteLine(
                                               $"[Server] Porudzbina {tipPorudzb} za konobara #{waiterId} za sto {tableId} je gotova");
-                                            notifier.NotifyOrderReady(tableId, waiterId);
-                                            
-                                            foreach(Order o in TableRepository.GetByID(tableId).TableOrders)
+                                            notifier.NotifyOrderReady(tableId, waiterId, tipPorudzb);
+                                            ArticleCategory tip = ArticleCategory.PICE;
+                                            if (tipPorudzb == "hrane") { tip = ArticleCategory.HRANA; }
+                                            List<Order> orders = TableRepository.GetByID(tableId).TableOrders.Where(o => o.ArticleCategory == tip).ToList();
+                                            foreach (Order o in orders)
                                             {
                                                 o._articleStatus = ArticleStatus.SPREMNO;
                                                 Console.WriteLine(o.ToString());
@@ -522,10 +525,13 @@ namespace Server
                             string[] parts = line.Split(';');
                             if (parts[0] == "DELIVERED")
                             {
-
+                                ArticleCategory tip = ArticleCategory.PICE;
+                                if (parts[2] == "hrane") { tip = ArticleCategory.HRANA; }
+                                
                                 int brStola = int.Parse(parts[1]);
+                                List<Order> orders = TableRepository.GetByID(brStola).TableOrders.Where(o => o.ArticleCategory == tip).ToList();
                                 Console.WriteLine($"[Server] Porudzbina za sto {brStola} je dostavljena");
-                                foreach (Order o in TableRepository.GetByID(brStola).TableOrders)
+                                foreach (Order o in orders)
                                 {
                                     o._articleStatus = ArticleStatus.ISPORUCENO;
                                     Console.WriteLine(o.ToString());

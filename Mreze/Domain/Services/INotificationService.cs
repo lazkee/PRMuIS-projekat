@@ -10,7 +10,7 @@
         /// </summary>
         /// <param name="tableId">ID stola za koji je porudžbina.</param>
         /// <param name="waiterId">ID konobara koji treba da primi obaveštenje.</param>
-        void NotifyOrderReady(int tableId, int waiterId);
+        void NotifyOrderReady(int tableId, int waiterId, string tipPorudzbine);
     }
 }
 

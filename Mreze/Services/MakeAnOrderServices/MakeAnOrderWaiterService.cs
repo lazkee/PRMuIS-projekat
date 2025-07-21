@@ -134,7 +134,7 @@ namespace Services.MakeAnOrderServices
             }
             finally
             {
-               _socket.Close();
+               //_socket.Close();
             }
         }
 
