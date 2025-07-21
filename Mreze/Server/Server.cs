@@ -19,7 +19,8 @@ using Services.ReleaseATableServices;
 using Services.SendOrderForPreparationServices;
 using Services.ServerServices;
 using Services.TakeATableServices;
-
+using Domain.Helpers;
+using Domain.Repositories.TableRepository;
 namespace Server
 {
     class Server
@@ -56,7 +57,7 @@ namespace Server
             Console.WriteLine("[Server] UDP TableListener pokrenut na portu 4000.");
 
             CalculateTheBill kasa = new CalculateTheBill();
-            new Thread(() => StartBillListener(kasa)) { IsBackground=true}.Start();
+            new Thread(() => StartBillListener(kasa)) { IsBackground = true }.Start();
             // 3.11) UDP listener za otkazivanje rezervacija koje su istekle na portu 4001 (menadzer salje serveru da je rezervacija otkazana - istekla, ako u roku od 10 sekundi ne dodju gosti)
 
             var releaseATableService = new ReleaseATableServerService(readService, 4001);
@@ -360,18 +361,12 @@ namespace Server
             }
         }
 
-        private static void StartOrderListenerUdp(
-            ISendOrderForPreparation prepService,
-             int udpPort)
-        {
-            var udp = new UdpClient(udpPort);
-            var remoteEP = new IPEndPoint(IPAddress.Any, 0);
-            Console.WriteLine($"[Server] Čeka UDP ORDER na portu {udpPort}...");
         private static void StartBillListener(CalculateTheBill kasa)
         {
-            var listenSock = new Socket(AddressFamily.InterNetwork,
-                                        SocketType.Stream,
-                                        ProtocolType.Tcp);
+            var listenSock = new Socket(
+                AddressFamily.InterNetwork,
+                SocketType.Stream,
+                ProtocolType.Tcp);
             listenSock.Bind(new IPEndPoint(IPAddress.Any, 5003));
             listenSock.Listen(100);
             Console.WriteLine($"[Server] Čeka BILL zahteve na portu 5003");
@@ -380,64 +375,74 @@ namespace Server
             {
                 // 1) Prihvatamo novu konekciju od klijenta
                 var client = listenSock.Accept();
+                client.Blocking = true;
+
                 new Thread(() =>
                 {
                     try
                     {
                         var buf = new byte[8192];
                         int n;
+
+                        // 2) U petlji primamo i obrađujemo sve poruke na ovoj konekciji
                         while ((n = client.Receive(buf)) > 0)
                         {
-
-
-                            if (n <= 0) return;
-
                             var line = Encoding.UTF8.GetString(buf, 0, n).Trim();
-                            string[] parts = line.Split(';');
+                            var parts = line.Split(';');
 
                             if (parts[0] == "KUSUR")
                             {
-                                int br = Int32.Parse(parts[1]);
-                                int iznos = Int32.Parse(parts[2]);
-                                int uplaceno = Int32.Parse(parts[3]);
-                                string poruka = $"[Naplata sto #{br}] Ukupno za uplatu(napojnica uracunata){iznos} Uplaceno:{uplaceno} Vracen kusur:{uplaceno - iznos}";
-                                Console.WriteLine($"[Server]{poruka}");
-                                client.Send(Encoding.UTF8.GetBytes(poruka));
+                                int br = int.Parse(parts[1]);
+                                int iznos = int.Parse(parts[2]);
+                                int uplaceno = int.Parse(parts[3]);
+                                string poruka = $"[Naplata sto #{br}] Ukupno za uplatu (napojnica uračunata) {iznos} Uplaćeno: {uplaceno} Vraćen kusur: {uplaceno - iznos}";
+
+                                Console.WriteLine($"[Server] {poruka}");
+                                // Pošaljemo odgovor natrag klijentu
+                                client.Send(Encoding.UTF8.GetBytes(poruka + "\n"));
+
+                                // Očistimo sto
 
                                 TableRepository.ClearTable(br);
                                 Console.WriteLine($"[Server] Sto broj {br} je sada slobodan");
-
                             }
                             else if (parts[0] == "RACUN")
                             {
+                                int brStola = int.Parse(parts[1]);
+                                Console.WriteLine($"[Server] Sto broj {brStola} je zatražio račun");
 
-                                int brStola = Int32.Parse(parts[1]);
-                                Console.WriteLine($"[Server] Sto broj {brStola} je zatrazio racun");
                                 string odgovor = kasa.Calculate(brStola);
+                                Console.WriteLine($"[Server] Odgovor: {odgovor}");
 
-                                client.Send(Encoding.UTF8.GetBytes(odgovor));
+                                client.Send(Encoding.UTF8.GetBytes(odgovor + "\n"));
                             }
-
+                            else
+                            {
+                                Console.WriteLine($"[Server] Neočekivana poruka: {line}");
+                            }
                         }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[ERROR] BillListener: {ex.Message}{ex.StackTrace}");
+                        Console.WriteLine($"[ERROR] BillListener: {ex.Message}{Environment.NewLine}{ex.StackTrace}");
                     }
-                    finally { client.Close(); }
-                    
+                    finally
+                    {
+                        // 3) Zatvorimo klijentski soket kada nema više podataka
+                        client.Close();
+                    }
                 })
                 { IsBackground = true }.Start();
             }
-           
         }
 
+
         private static void StartClientListener(
-    IClientDirectory directory,
-    NotificationService notifier,
-    int registerPort,
-    int readyPort
-)
+        IClientDirectory directory,
+        NotificationService notifier,
+        int registerPort,
+        int readyPort
+    )
         {
             // 1) Kreiramo dva ne‑blokirajuća TCP soketa: jedan za REGISTER, jedan za READY
             var registerSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -582,130 +587,6 @@ namespace Server
         }
 
 
-        //    var readList = new List<Socket>();
-
-        //    while (true)
-        //    {
-        //        // 2) Pripremimo listu za Select
-        //        readList.Clear();
-        //        readList.Add(registerSock);
-        //        readList.Add(readySock);
-        //        readList.Add(billSock);
-
-        //        // 3) Select čeka do 1 sekunde na događaje za čitanje
-        //        Socket.Select(readList, null, null, microSeconds: 1_000_000);
-
-        //        if (readList.Count == 0)
-        //        {
-        //            // timeout, nema događaja
-        //            continue;
-        //        }
-
-        //        // 4) Obrada svakog soketa koji je spreman
-        //        foreach (Socket s in readList)
-        //        {
-        //            Console.WriteLine("prolazak kroz petlju");
-        //            var buffer = new byte[1024];
-        //            if (s == registerSock)
-        //            {
-        //                Console.WriteLine("Pokusaj registracije");
-        //                // neko pokušava da se registruje
-        //                Socket client = registerSock.Accept();
-        //                client.Blocking = true;
-        //                // primamo REGISTER liniju
-
-        //                int r = client.Receive(buffer);
-        //                var line = Encoding.UTF8.GetString(buffer, 0, r).Trim();
-        //                // očekujemo "REGISTER;{id};{type};{udpPort}"
-        //                var parts = line.Split(';');
-
-        //                if (parts.Length == 4 && parts[0] == "REGISTER")
-        //                {
-        //                    int id = int.Parse(parts[1]);
-        //                    var type = (ClientType)Enum.Parse(
-        //                                       typeof(ClientType),
-        //                                       parts[2],
-        //                                       true);
-        //                    int udpPort = int.Parse(parts[3]);
-        //                    var ip = ((IPEndPoint)client.RemoteEndPoint).Address;
-
-        //                    directory.Register(new ClientInfo
-        //                    {
-        //                        Id = id,
-        //                        Type = type,
-        //                        Socket = client,
-        //                        Endpoint = new IPEndPoint(ip, udpPort)
-        //                    });
-
-        //                    // vratimo potvrdu
-        //                    var ok = Encoding.UTF8.GetBytes("REGISTERED\n");
-        //                    //IPEndPoint remoteEp = new IPEndPoint(ip,udpPort);
-        //                    //client.Connect(remoteEp);
-        //                    client.Send(ok);
-        //                    Console.WriteLine(
-        //                        $"[Server] Registrovan klijent: ID={id}, Tip={type}, UDPport={udpPort}");
-        //                }
-        //                else
-        //                {
-        //                    //var bad = Encoding.UTF8.GetBytes("INVALID_REGISTER\n");
-        //                    //client.Send(bad);
-        //                    Console.WriteLine($"Neuspjensa registracija [{line}]");
-        //                }
-        //                //client.Close();
-        //            }
-
-        //            else if (s == readySock)
-        //            {
-        //                // neko šalje READY poruku
-        //                Socket client = readySock.Accept();
-        //                client.Blocking = true;
-        //                int r = client.Receive(buffer);
-        //                var line = Encoding.UTF8.GetString(buffer, 0, r).Trim();
-        //                // očekujemo "READY;{tableId};{waiterId}"
-        //                var parts = line.Split(';');
-        //                if (parts.Length == 4 && parts[0] == "READY")
-        //                {
-        //                    int tableId = int.Parse(parts[1]);
-        //                    int waiterId = int.Parse(parts[2]);
-        //                    string tipPorudzbine = parts[3];
-        //                    Console.WriteLine(
-        //                        $"[Server]Porudzbina {tipPorudzbine} za konobara #{waiterId} za sto {tableId} je gotova");
-        //                    notifier.NotifyOrderReady(tableId, waiterId);
-        //                }
-        //                else
-        //                {
-        //                    Console.WriteLine($"[Server] Neočekivana poruka na READY socket: {line}");
-        //                }
-        //            }
-        //                    else if (s == billSock)
-        //                    {
-        //                        Socket client = billSock.Accept();
-        //        client.Blocking = true;
-        //                        int r = client.Receive(buffer);
-        //        string line = Encoding.UTF8.GetString(buffer, 0, r).Trim(); ;
-        //                        string[] parts = line.Split(';');
-        //        bool pokusaj = Int32.TryParse(parts[2], out int brojStola);
-        //                        if (parts[0] == "RACUN")
-        //                        {
-        //                            //izracunavanje kusura
-        //                            CalculateTheBill kasa = new CalculateTheBill();
-        //        TableRepository tdb = new TableRepository();
-        //        string poruka = kasa.Calculate(brojStola);
-
-
-        //        client.Send(Encoding.UTF8.GetBytes(poruka));
-        //                        }
-        //}
-        //            else
-        //            {
-        //                Console.WriteLine("Nepoznata greska");
-        //            }
-
-        //            //client.Close();
-        //        }
-        //    }
-        //}
-
 
 
         private static void StartOrderListener(
@@ -779,7 +660,7 @@ namespace Server
                                 table.TableNumber,
                                 table.TableOrders);
                         }
-                        
+
                     }
                     catch (Exception ex)
                     {
@@ -794,31 +675,6 @@ namespace Server
                 .Start();
             }
         }
-
-       
-        //private static int ReadIntFromStream(Stream stream)
-        //{
-        //    var buf = new byte[4];
-        //    stream.Read(buf, 0, 4);
-        //    return BitConverter.ToInt32(buf, 0);
-        //}
-
-        ///// <summary>
-        ///// Čita tačno <paramref name="count"/> bajtova iz toka.
-        ///// </summary>
-        //private static byte[] ReadBytesFromStream(Stream stream, int count)
-        //{
-        //    var buf = new byte[count];
-        //    int offset = 0, remaining = count;
-        //    while (remaining > 0)
-        //    {
-        //        int read = stream.Read(buf, offset, remaining);
-        //        if (read <= 0) throw new EndOfStreamException();
-        //        offset += read;
-        //        remaining -= read;
-        //    }
-        //    return buf;
-        //}
-
     }
 }
+

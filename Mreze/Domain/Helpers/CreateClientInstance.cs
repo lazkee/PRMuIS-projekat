@@ -42,7 +42,7 @@ namespace Server
         /// </summary>
         private void PokreniKlijente(int brojKlijenata, ClientType tipKlijenta)
         {
-            int startPort = 6000;
+            
             string clientPath;
 
             // Odredi putanju do izvršnog fajla klijenta

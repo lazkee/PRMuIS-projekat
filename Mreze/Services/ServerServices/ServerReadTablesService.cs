@@ -20,8 +20,8 @@ namespace Services.ServerServices
         {
             var free = TableRepository.GetAllTables()
                 .FirstOrDefault(t => t.TableState == TableState.FREE && t.Capacity >= numGuests);
-            //return free != null ? free.TableNumber : -1;
-            return free.TableNumber;
+            return free != null ? free.TableNumber : -1;
+            //return free.TableNumber;
         }
 
         public void OccupyTable(int tableNumber, int waiterId)

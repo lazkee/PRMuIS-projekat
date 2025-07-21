@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System;
+using Domain.Models;
+using Domain.Repositories.TableRepository;
 namespace Domain.Helpers
 {
     public class CalculateTheBill
