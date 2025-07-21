@@ -2,10 +2,9 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Sockets;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks;
 using Domain.Models;
 
 namespace Domain.Repositories.ManagerRepository
@@ -61,11 +60,26 @@ namespace Domain.Repositories.ManagerRepository
             _managerBusy[managerId] = isBusy;
         }
 
+        public int GetTableNumber(int reservationId)
+        {
+            return _reservationNumber[reservationId].TableNumber;
+        }
+
+        public DateTime GetExpireDate(int reservationId)
+        {
+            return _reservationNumber[reservationId].ReservationTime;
+        }
+
+        public void AddNewReservationForServer(int reservationNumber, int tableNumber)
+        {
+            _reservationNumber[reservationNumber] = new Reservation { TableNumber = tableNumber, ReservationTime = DateTime.Now };
+        }
+
         public void RequestFreeTable(int managerId, int serverPort, int numGuests)
         {
             using (var client = new UdpClient())
             {
-                string message = $"TAKE_TABLE;{managerId};{numGuests}"; //postoji i ideja da bude i clientType poslat, ali onda mora da se prosledjuje i da li je reserved ili busy samo, sto otezava a realno svejedno da li je busy ili reserved samo, svakako je zauzet sto
+                string message = $"TAKE_TABLE;{managerId};{numGuests};MANAGER;{key_value}"; //postoji i ideja da bude i clientType poslat, ali onda mora da se prosledjuje i da li je reserved ili busy samo, sto otezava a realno svejedno da li je busy ili reserved samo, svakako je zauzet sto
                 byte[] data = Encoding.UTF8.GetBytes(message);
                 client.Send(data, data.Length, "127.0.0.1", serverPort);
 
@@ -76,7 +90,7 @@ namespace Domain.Repositories.ManagerRepository
                 if (responseText.StartsWith("TABLE_FREE;"))
                 {
                     int tableNum = int.Parse(responseText.Split(';')[1]);
-                    _reservationNumber[key_value] = new Reservation{ TableNumber = tableNum, ReservationTime = DateTime.Now };
+                    _reservationNumber[key_value] = new Reservation { TableNumber = tableNum, ReservationTime = DateTime.Now };
                     Console.WriteLine($"Table number {tableNum} is reserved, your reserve number is {key_value}!\n");
                     ++key_value;
                     return;
@@ -105,12 +119,9 @@ namespace Domain.Repositories.ManagerRepository
                 .Select(kvp => (kvp.Key, kvp.Value));
         }
 
-        public bool CheckReservation(int reservationId) {
-
-            if (_reservationNumber[reservationId] == null) {
-                return false;
-            }
-            return true;
+        public bool CheckReservation(int reservationId)
+        {
+            return _reservationNumber.ContainsKey(reservationId);
         }
 
         //metoda da proverava broj rezervacije i da javi serveru da su gosti stigli

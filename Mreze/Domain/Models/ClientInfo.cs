@@ -12,6 +12,6 @@ namespace Domain.Models
         public Socket Socket { get; set; }
 
         public IPEndPoint Endpoint { get; set; }
-        
+
     }
 }

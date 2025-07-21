@@ -4,8 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading;
@@ -25,7 +23,7 @@ namespace Services.SendOrderForPreparationServices
         private readonly IOrderRepository _foodRepo;
         private readonly IOrderRepository _drinkRepo;
 
-        
+
 
         public SendOrderForPreparationService(
             IClientDirectory directory,
@@ -115,7 +113,7 @@ namespace Services.SendOrderForPreparationServices
                 int tableNo = batch[0]._tableNumber;
                 int waiterId = batch[0]._waiterId;
                 //Table table = tableRepository.GetByID(tableNo);
-                
+
 
                 // 4) Serijalizuj ga u bajt niz
                 byte[] orderData = new byte[8192];

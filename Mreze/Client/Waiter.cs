@@ -12,6 +12,7 @@ namespace Client
 {
     class Client
     {
+        private static readonly object consoleLock = new object();
         static void Main(string[] args)
         {
             if (args.Length < 3)
@@ -30,7 +31,7 @@ namespace Client
             var waiterRepo = new WaiterRepository(totalWaiters);
             var orderService = new MakeAnOrderWaiterService(waiterRepo, udpPort);
             var tableService = new TakeATableClientService(orderService, waiterRepo, udpPort);
-            var waiterMgmt = new WaiterManagementService(tableService, waiterRepo,udpPort + 2000);
+            var waiterMgmt = new WaiterManagementService(tableService, waiterRepo, udpPort + 2000, orderService);
 
             // 2) Pokrećemo jedan Thread koji obavlja:
             //    a) TCP REGISTER
@@ -56,7 +57,7 @@ namespace Client
 
                     // c) Prihvatimo ACK liniju “REGISTERED\n”
                     var tmp = new byte[1];
-                    
+
 
                     byte[] ackbytes = new byte[1024];
                     int bytesRecieved = sock.Receive(ackbytes);
@@ -88,10 +89,10 @@ namespace Client
                             Console.WriteLine($"Porudžbina za sto {tableNo} je dostavljena.");
                         }
 
-                       }
+                    }
 
-                        
-                  }
+
+                }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[NotificationThread ERROR] {ex.Message}");
@@ -100,11 +101,69 @@ namespace Client
             { IsBackground = true }
             .Start();
 
-            // 3) Glavna nit: interaktivni meni za uzimanje/rezervisanje stola
-            waiterMgmt.TakeOrReserveATable(waiterId, Domain.Enums.ClientType.Waiter);
+            // 4) UDP Socket listener for MAKE_ORDER
+            /*
+            new Thread(() =>
+            {
+                try
+                {
+                    int listenPort = udpPort + 100; // UDP port to listen on
+                    Socket udpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                    udpSocket.Bind(new IPEndPoint(IPAddress.Any, listenPort));
 
-            Console.WriteLine("Konobar je zatvoren. Pritisnite ENTER za kraj...");
-            Console.ReadLine();
+                    Console.WriteLine($"[UDP Listener] Waiting for MAKE_ORDER messages on port {listenPort}...");
+
+                    while (true)
+                    {
+                        byte[] buffer = new byte[1024];
+                        EndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
+                        int received = udpSocket.ReceiveFrom(buffer, ref remoteEP);
+                        string message = Encoding.UTF8.GetString(buffer, 0, received);
+
+                        if (message.StartsWith("MAKE_ORDER:"))
+                        {
+                            var parts = message.Split(':');
+                            if (parts.Length >= 3 &&
+                                int.TryParse(parts[1], out int tableNo) &&
+                                int.TryParse(parts[2], out int guestCount))
+                            {
+                                waiterRepo.SetWaiterState(waiterId, true);
+                                lock (consoleLock)
+                                {
+                                    Console.WriteLine($"[UDP Listener] MAKE_ORDER received for table {tableNo} with {guestCount} guests.");
+
+                                    // Call your order logic here
+                                    orderService.MakeAnOrder(tableNo, guestCount, waiterId);
+                                }
+                                waiterRepo.SetWaiterState(waiterId, false);
+                            }
+                            else
+                            {
+                                Console.WriteLine("[UDP Listener] Invalid MAKE_ORDER message format.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[UDP Listener] Unknown message received: {message}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[UDP Listener ERROR] {ex.Message}");
+                }
+            })
+            { IsBackground = true }.Start();
+            */
+
+            // 3) Glavna nit: interaktivni meni za uzimanje/rezervisanje stola
+            //waiterMgmt.TakeOrReserveATable(waiterId, Domain.Enums.ClientType.Waiter);
+
+            Thread waiterThread = new Thread(() => waiterMgmt.TakeOrReserveATable(waiterId, Domain.Enums.ClientType.Waiter));
+            waiterThread.Start();
+
+            //Console.WriteLine("Konobar je zatvoren. Pritisnite ENTER za kraj...");
+            //Console.ReadLine();
         }
     }
 }

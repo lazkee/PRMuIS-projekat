@@ -1,6 +1,4 @@
-﻿using Domain.Repositories.TableRepository;
-using Domain.Models;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System;
 namespace Domain.Helpers
@@ -11,7 +9,7 @@ namespace Domain.Helpers
 
         public string Calculate(int brStola)
         {
-            string s=string.Empty;
+            string s = string.Empty;
             int suma = 0;
             List<Order> orders= TableRepository.GetByID(brStola).TableOrders;
             foreach (Order o in orders)

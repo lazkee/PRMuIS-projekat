@@ -1,18 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading;
 using Domain.Enums;
-using Domain.Helpers;
 using Domain.Models;
 using Domain.Repositories;
+using Domain.Repositories.ManagerRepository;
 using Domain.Repositories.OrderRepository;
-using Domain.Repositories.TableRepository;
+using Domain.Repositories.WaiterRepository;
 using Domain.Services;
 using Infrastructure.Networking;
 using Services.NotificationServices;
@@ -49,11 +48,10 @@ namespace Server
             }.Start();
             Console.WriteLine("[Server] TCP ClientListener pokrenut na portu 5000.");
 
-            
-
             // 3.1) UDP listener za raspodelu stolova
             var readService = new ServerReadTablesService();
-            var tableService = new TakeATableServerService(readService, listenPort: 4000);
+            var managerRepository = new ManagerRepository(1);       //nebitan broj, samo se stolovi koriste
+            var tableService = new TakeATableServerService(readService, managerRepository, listenPort: 4000);
             new Thread(tableService.TakeATable) { IsBackground = true }.Start();
             Console.WriteLine("[Server] UDP TableListener pokrenut na portu 4000.");
 
@@ -67,8 +65,22 @@ namespace Server
             Console.WriteLine("[Server] UDP TableCancelationListener pokrenut na portu 4001.");
 
             // 3.12) bice UDP listener za goste koji su stigli sa rezervacijom na portu 4002 (menadzer salje serveru da su stigli)
+            /*
+            IWaiterRepository waiterRepo = new WaiterRepository(3);
 
+            new Thread(() => StartGuestsArrivedListener(4002, waiterRepo, clientDirectory)) { IsBackground = true }.Start();
+            Console.WriteLine("[Server] GuestsArrivedListener pokrenut na portu 4002.");
+            //ne radimo ipak na ovaj nacin*/
 
+            // 3.13) UDP listener kada konobar zatrazuje proveru rezervacije
+
+            //var reservationServer = new WaiterReservationValidationServerService(managerRepository);
+            new Thread(() => ReservationVerificationServer.Start(managerRepository))
+            {
+                IsBackground = true
+            }.Start();
+
+            Console.WriteLine("[Server] UDP ReservationVerificationServer started on port 4003.");
 
             // 3.2) TCP listener za porudžbine na portu 15000
             //new Thread(() => StartOrderListener(prepService, tcpPort: 15000)) { IsBackground = true }
@@ -77,11 +89,9 @@ namespace Server
             new Thread(() => StartOrderListener(prepService, 15000)) { IsBackground = true }.Start();
             Console.WriteLine("[Server] UDP OrderListener pokrenut na portu 15000.");
 
-            
-
             // 4) Držimo main nit živom
             Console.WriteLine("Server je pokrenut. Pritisni ENTER za zaustavljanje.");
-            
+
             // 2) Pokretanje i registrovanje klijentskih procesa
             var createClientInstance = new CreateClientInstance();
             createClientInstance.BrojITipKlijenta(2, ClientType.Waiter);
@@ -91,6 +101,272 @@ namespace Server
             Console.ReadLine();
         }
 
+        /// <summary>
+        /// Listener koji prima binarni protokol: length-prefixed waiterId i serijalizovani Table.
+        /// Deserijalizuje ih, loguje kao Base64 i potom prosleđuje prepService.SendOrder.
+        /// gornji thread pravi novi thread, da on moze da obavlja posao bez da blokira ostale
+        /// </summary>
+        /// 
+
+        /*public static class ReservationVerificationServer
+        {
+            public static void Start(IManagerRepository managerRepo)
+            {
+                try
+                {
+                    Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                    EndPoint localEndPoint = new IPEndPoint(IPAddress.Loopback, 4003);
+                    socket.Bind(localEndPoint);
+                    Console.WriteLine("UDP Reservation Server is running on port 4003...");
+
+                    //EndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
+                    //byte[] buffer = new byte[1024];
+
+
+                    while (true)
+                    {
+                        try
+                        {
+                            EndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
+                            byte[] buffer = new byte[1024];
+
+                            int received = socket.ReceiveFrom(buffer, ref remoteEndPoint);
+                            if (received <= 0)
+                                continue;
+
+                            string message = Encoding.UTF8.GetString(buffer, 0, received);
+
+                            if (int.TryParse(message, out int reservationCode))
+                            {
+                                Console.WriteLine($"[ReservationServer] Received reservation code: {reservationCode}");
+
+                                bool isValid = managerRepo.CheckReservation(reservationCode);
+                                int tableNumber = 0;
+                                if (isValid)
+                                {
+                                    tableNumber = managerRepo.GetTableNumber(reservationCode);
+                                    managerRepo.RemoveReservation(reservationCode);
+                                }
+
+                                string response = isValid
+                                    ? $"OK;{tableNumber}"
+                                    : "ERROR;Invalid reservation";
+
+                                byte[] responseBytes = Encoding.UTF8.GetBytes(response);
+                                socket.SendTo(responseBytes, remoteEndPoint);
+                            }
+                            else
+                            {
+                                Console.WriteLine("[ReservationServer] Invalid message received.");
+                            }
+                        }
+                        catch (SocketException se)
+                        {
+                            Console.WriteLine($"[ReservationServer] Socket exception: {se.Message}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[ReservationServer] Unexpected error: {ex}");
+                        }
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ReservationServer] Error: {ex.Message}");
+                }
+            }
+        }*/
+
+        public static class ReservationVerificationServer
+        {
+            public static void Start(IManagerRepository managerRepo)
+            {
+                try
+                {
+                    Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+
+                    // Koristi IPAddress.Any umesto Loopback da podrži sve lokalne konekcije
+                    EndPoint localEndPoint = new IPEndPoint(IPAddress.Any, 4003);
+                    socket.Bind(localEndPoint);
+
+                    Console.WriteLine("[ReservationServer] UDP Reservation Server is running on port 4003...");
+
+                    // Opcionalno: dodaj timeout da se ReceiveFrom ne blokira zauvek
+                    // socket.ReceiveTimeout = 10000;
+
+                    while (true)
+                    {
+                        try
+                        {
+                            EndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
+                            byte[] buffer = new byte[1024];
+
+                            int received = socket.ReceiveFrom(buffer, ref remoteEndPoint);
+                            if (received <= 0) continue;
+
+                            string message = Encoding.UTF8.GetString(buffer, 0, received).Trim();
+                            Console.WriteLine($"[ReservationServer] Received message: {message}");
+
+                            if (int.TryParse(message, out int reservationCode))
+                            {
+                                bool isValid = managerRepo.CheckReservation(reservationCode);
+                                int tableNumber = 0;
+
+                                if (isValid)
+                                {
+                                    tableNumber = managerRepo.GetTableNumber(reservationCode);
+                                    managerRepo.RemoveReservation(reservationCode);
+                                    Console.WriteLine($"[ReservationServer] Valid reservation #{reservationCode}, assigned table {tableNumber}");
+
+                                    // Posalji obavestenje menadzeru na port 4010
+                                    try
+                                    {
+                                        string managerMessage = $"RESERVATION_USED;{reservationCode}";
+                                        byte[] managerData = Encoding.UTF8.GetBytes(managerMessage);
+
+                                        Socket managerNotifySocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                                        IPEndPoint managerEndpoint = new IPEndPoint(IPAddress.Loopback, 4010); // ili IP menadzera ako nije lokalno
+
+                                        managerNotifySocket.SendTo(managerData, managerEndpoint);
+                                        managerNotifySocket.Close();
+
+                                        Console.WriteLine($"[ReservationServer] Poslata poruka menadžeru: {managerMessage}");
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine($"[ReservationServer] Greška prilikom slanja menadžeru: {ex.Message}");
+                                    }
+
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"[ReservationServer] Invalid or used reservation code: {reservationCode}");
+                                }
+
+                                string response = isValid
+                                    ? $"OK;{tableNumber}"
+                                    : "ERROR;Invalid reservation";
+
+                                byte[] responseBytes = Encoding.UTF8.GetBytes(response);
+                                socket.SendTo(responseBytes, remoteEndPoint);
+                            }
+                            else
+                            {
+                                Console.WriteLine("[ReservationServer] Malformed message received.");
+                            }
+                        }
+                        catch (SocketException se)
+                        {
+                            Console.WriteLine($"[ReservationServer] SocketException: {se.Message}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[ReservationServer] General exception: {ex.Message}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ReservationServer] Failed to start listener: {ex.Message}");
+                }
+            }
+        }
+
+
+        private static void StartGuestsArrivedListener(int port, IWaiterRepository waiterRepo, IClientDirectory clientDirectory)
+        {
+            var udpClient = new UdpClient(port);
+            var remoteEP = new IPEndPoint(IPAddress.Any, 0);
+
+            Console.WriteLine($"[Server] Čeka na GUESTS_ARRIVED poruke na portu {port}...");
+
+            while (true)
+            {
+                try
+                {
+                    var data = udpClient.Receive(ref remoteEP);
+                    var message = Encoding.UTF8.GetString(data);
+
+                    if (message.StartsWith("GUESTS_ARRIVED:"))
+                    {
+                        var parts = message.Split(':');
+                        if (parts.Length == 3 && int.TryParse(parts[1], out int reservationNumber) && int.TryParse(parts[2], out int tableNumber))
+                        {
+
+                            Console.WriteLine($"[Server] Gosti su stigli za rezervaciju #{reservationNumber} i broj stola {tableNumber}.");
+
+
+
+                            // Ovde možeš dodati logiku za označavanje da su gosti stigli
+                            // ili ažurirati bazu / stanje servera / osloboditi timer itd.
+
+                            int freeWaiterId = -1;
+                            foreach (var kvp in waiterRepo.GetAllWaiterStates())
+                            {
+                                if (!kvp.Value) // means waiter is FREE
+                                {
+                                    freeWaiterId = kvp.Key;
+                                    break;
+                                }
+                            }
+
+                            if (freeWaiterId == -1)
+                            {
+                                Console.WriteLine("[Server] Nema slobodnih konobara trenutno.");
+                            }
+                            else
+                            {
+                                waiterRepo.SetWaiterState(freeWaiterId, true);
+                                Console.WriteLine($"[Server] Konobar #{freeWaiterId} dodeljen za rezervaciju #{reservationNumber}.");
+
+                                // Dummy data for this example — should be fetched from reservation
+                                //int brojStola = reservationNumber; // or from reservation data
+                                //ITableRepository tableRepo = new TableRepository();
+                                int brojStola = 1;
+
+                                //var waiter = clientDirectory.GetById(freeWaiterId);
+                                //IPEndPoint waiterEndPoint = waiter.Endpoint;
+                                int brojGostiju = 4;
+                                string waiterMessage = $"MAKE_ORDER:{brojStola}:{brojGostiju}:{tableNumber}";
+                                byte[] data1 = Encoding.UTF8.GetBytes(waiterMessage);
+
+                                Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                                IPEndPoint waiterEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 6100 + freeWaiterId - 1);
+
+                                socket.SendTo(data1, waiterEndPoint);
+                                socket.Close();
+
+                                Console.WriteLine($"[Server] Poslata poruka konobaru #{freeWaiterId} na port {waiterEndPoint.Port}: {waiterMessage}");
+
+                            }
+
+
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[Server] Nevalidan broj rezervacije: {message}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[Server] Nepoznata poruka na portu 4002: {message}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ERROR] GuestsArrivedListener: {ex.Message}");
+                }
+            }
+        }
+
+        private static void StartOrderListenerUdp(
+            ISendOrderForPreparation prepService,
+             int udpPort)
+        {
+            var udp = new UdpClient(udpPort);
+            var remoteEP = new IPEndPoint(IPAddress.Any, 0);
+            Console.WriteLine($"[Server] Čeka UDP ORDER na portu {udpPort}...");
         private static void StartBillListener(CalculateTheBill kasa)
         {
             var listenSock = new Socket(AddressFamily.InterNetwork,
@@ -305,6 +581,130 @@ namespace Server
             }
         }
 
+
+        //    var readList = new List<Socket>();
+
+        //    while (true)
+        //    {
+        //        // 2) Pripremimo listu za Select
+        //        readList.Clear();
+        //        readList.Add(registerSock);
+        //        readList.Add(readySock);
+        //        readList.Add(billSock);
+
+        //        // 3) Select čeka do 1 sekunde na događaje za čitanje
+        //        Socket.Select(readList, null, null, microSeconds: 1_000_000);
+
+        //        if (readList.Count == 0)
+        //        {
+        //            // timeout, nema događaja
+        //            continue;
+        //        }
+
+        //        // 4) Obrada svakog soketa koji je spreman
+        //        foreach (Socket s in readList)
+        //        {
+        //            Console.WriteLine("prolazak kroz petlju");
+        //            var buffer = new byte[1024];
+        //            if (s == registerSock)
+        //            {
+        //                Console.WriteLine("Pokusaj registracije");
+        //                // neko pokušava da se registruje
+        //                Socket client = registerSock.Accept();
+        //                client.Blocking = true;
+        //                // primamo REGISTER liniju
+
+        //                int r = client.Receive(buffer);
+        //                var line = Encoding.UTF8.GetString(buffer, 0, r).Trim();
+        //                // očekujemo "REGISTER;{id};{type};{udpPort}"
+        //                var parts = line.Split(';');
+
+        //                if (parts.Length == 4 && parts[0] == "REGISTER")
+        //                {
+        //                    int id = int.Parse(parts[1]);
+        //                    var type = (ClientType)Enum.Parse(
+        //                                       typeof(ClientType),
+        //                                       parts[2],
+        //                                       true);
+        //                    int udpPort = int.Parse(parts[3]);
+        //                    var ip = ((IPEndPoint)client.RemoteEndPoint).Address;
+
+        //                    directory.Register(new ClientInfo
+        //                    {
+        //                        Id = id,
+        //                        Type = type,
+        //                        Socket = client,
+        //                        Endpoint = new IPEndPoint(ip, udpPort)
+        //                    });
+
+        //                    // vratimo potvrdu
+        //                    var ok = Encoding.UTF8.GetBytes("REGISTERED\n");
+        //                    //IPEndPoint remoteEp = new IPEndPoint(ip,udpPort);
+        //                    //client.Connect(remoteEp);
+        //                    client.Send(ok);
+        //                    Console.WriteLine(
+        //                        $"[Server] Registrovan klijent: ID={id}, Tip={type}, UDPport={udpPort}");
+        //                }
+        //                else
+        //                {
+        //                    //var bad = Encoding.UTF8.GetBytes("INVALID_REGISTER\n");
+        //                    //client.Send(bad);
+        //                    Console.WriteLine($"Neuspjensa registracija [{line}]");
+        //                }
+        //                //client.Close();
+        //            }
+
+        //            else if (s == readySock)
+        //            {
+        //                // neko šalje READY poruku
+        //                Socket client = readySock.Accept();
+        //                client.Blocking = true;
+        //                int r = client.Receive(buffer);
+        //                var line = Encoding.UTF8.GetString(buffer, 0, r).Trim();
+        //                // očekujemo "READY;{tableId};{waiterId}"
+        //                var parts = line.Split(';');
+        //                if (parts.Length == 4 && parts[0] == "READY")
+        //                {
+        //                    int tableId = int.Parse(parts[1]);
+        //                    int waiterId = int.Parse(parts[2]);
+        //                    string tipPorudzbine = parts[3];
+        //                    Console.WriteLine(
+        //                        $"[Server]Porudzbina {tipPorudzbine} za konobara #{waiterId} za sto {tableId} je gotova");
+        //                    notifier.NotifyOrderReady(tableId, waiterId);
+        //                }
+        //                else
+        //                {
+        //                    Console.WriteLine($"[Server] Neočekivana poruka na READY socket: {line}");
+        //                }
+        //            }
+        //                    else if (s == billSock)
+        //                    {
+        //                        Socket client = billSock.Accept();
+        //        client.Blocking = true;
+        //                        int r = client.Receive(buffer);
+        //        string line = Encoding.UTF8.GetString(buffer, 0, r).Trim(); ;
+        //                        string[] parts = line.Split(';');
+        //        bool pokusaj = Int32.TryParse(parts[2], out int brojStola);
+        //                        if (parts[0] == "RACUN")
+        //                        {
+        //                            //izracunavanje kusura
+        //                            CalculateTheBill kasa = new CalculateTheBill();
+        //        TableRepository tdb = new TableRepository();
+        //        string poruka = kasa.Calculate(brojStola);
+
+
+        //        client.Send(Encoding.UTF8.GetBytes(poruka));
+        //                        }
+        //}
+        //            else
+        //            {
+        //                Console.WriteLine("Nepoznata greska");
+        //            }
+
+        //            //client.Close();
+        //        }
+        //    }
+        //}
 
 
 

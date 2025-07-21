@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Domain.Enums;
 using Domain.Repositories.ManagerRepository;
 using Domain.Services;
@@ -22,14 +18,15 @@ namespace Services.ManagementServices
 
         public void TakeOrReserveATable(int clientId, ClientType clientType)
         {
-            if (clientType == ClientType.Manager) {
+            if (clientType == ClientType.Manager)
+            {
 
                 while (!_managerRepository.GetManagerState(clientId))
                 {
 
-                    Console.WriteLine("1. Take a new table");
-                    Console.WriteLine("2. Check my reservation");
-                    Console.WriteLine("0. Close the waiter");
+                    Console.WriteLine("1. Napravi rezervaciju");
+                    Console.WriteLine("2. Proveri rezervaciju");
+                    Console.WriteLine("0. Ugasi Menadzera");
                     Console.Write("Your instruction: ");
                     var key = Console.ReadLine();
 
@@ -69,8 +66,28 @@ namespace Services.ManagementServices
                                 _managerRepository.SetManagerState(clientId, false);
                                 continue;
                             }
+                            else
+                            {
+                                var expireDate = _managerRepository.GetExpireDate(reservationNumber);
+                                Console.WriteLine($"Reservation {reservationNumber} valid until {expireDate}\n");
+                            }
+
+                            /* int tableNumber = _managerRepository.GetTableNumber(reservationNumber);
+
+                             string message = $"GUESTS_ARRIVED:{reservationNumber}:{tableNumber}";
+                             byte[] data = Encoding.UTF8.GetBytes(message);
+
+                             Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                             IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 4002);
+
+                             socket.SendTo(data, endPoint);
+                             socket.Close();
+
+                             Console.WriteLine("Notification sent to server via raw socket: guests arrived.");*/
 
                             //odavde se salje preko udp na 4002 serveru da su gosti stigli za stol
+
+                            _managerRepository.SetManagerState(clientId, false);
 
                         }
                         else if (key.Equals("0"))
@@ -91,8 +108,6 @@ namespace Services.ManagementServices
                 }
             }
         }
-
-
 
     }
 }
