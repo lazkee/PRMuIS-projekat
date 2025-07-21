@@ -45,11 +45,18 @@ namespace Client
                 try
                 {
                     //  Kreiramo TCP socket i povežemo se
-                    var sock = new Socket(
+                    Socket sock = new Socket(
                         AddressFamily.InterNetwork,
                         SocketType.Stream,
                         ProtocolType.Tcp);
                     sock.Connect(new IPEndPoint(IPAddress.Parse(serverIp), serverPort));
+
+                    //kreiramo drugi tcp socket za obavjestenje o isporucenoj porudzbini
+                    Socket orderSock = new Socket(
+                        AddressFamily.InterNetwork,
+                        SocketType.Stream,
+                        ProtocolType.Tcp);
+                    orderSock.Connect(new IPEndPoint(IPAddress.Parse(serverIp), 4011));
 
                     // Pošaljemo REGISTER;{waiterId};Waiter;{udpPort}\n
                     string regMsg = $"REGISTER;{waiterId};Waiter;{udpPort}\n";
@@ -87,6 +94,8 @@ namespace Client
                             Console.WriteLine($"Porudžbina za sto {tableNo} je spremna! Nosim…");
                             Thread.Sleep(1500);
                             Console.WriteLine($"Porudžbina za sto {tableNo} je dostavljena.");
+                            orderSock.Send(Encoding.UTF8.GetBytes($"DELIVERED;{tableNo}"));
+
                         }
 
                     }
@@ -108,7 +117,7 @@ namespace Client
 
             Thread waiterThread = new Thread(() => waiterMgmt.TakeOrReserveATable(waiterId, Domain.Enums.ClientType.Waiter));
             waiterThread.Start();
-
+            
             
         }
     }

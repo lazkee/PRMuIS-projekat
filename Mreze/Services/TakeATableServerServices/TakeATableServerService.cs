@@ -53,9 +53,14 @@ namespace Services.TakeATableServices
                         if (clientType == "MANAGER")
                         {
                             _managerRepository.AddNewReservationForServer(reservationNumber, freeTable);
+                            Console.WriteLine($"[Server] Sto broj {freeTable} je sada rezervisan");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[Server] Sto broj {freeTable} je sada zauzet");
                         }
                        
-                        Console.WriteLine($"[Server] Sto broj {freeTable} je sada zauzet");
+                        
 
                     }
                     else

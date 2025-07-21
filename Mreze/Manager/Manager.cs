@@ -61,7 +61,7 @@ namespace Manager
                     var udpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
                     udpSocket.Bind(new IPEndPoint(IPAddress.Any, 4010));
 
-                    Console.WriteLine("[Menadzer] Listener za obaveštenja o iskorišćenim rezervacijama pokrenut na portu 4010.");
+                    //Console.WriteLine("[Menadzer] Listener za obaveštenja o iskorišćenim rezervacijama pokrenut na portu 4010.");
 
                     EndPoint remote = new IPEndPoint(IPAddress.Any, 0);
                     byte[] buffer = new byte[1024];

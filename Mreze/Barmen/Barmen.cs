@@ -24,7 +24,7 @@ namespace Barmen
             int count = int.Parse(args[1]);
             int udpPort = int.Parse(args[2]);
 
-            Console.WriteLine($"[Barmen] id#{barmenId}, Port {udpPort} ");
+            Console.WriteLine($"[Sanker] id#{barmenId}, Port {udpPort} ");
 
             const string serverIp = "127.0.0.1";
             const int registerPort = 5000;    // port na kojem se REGISTER prima
@@ -42,12 +42,12 @@ namespace Barmen
 
             if (ack != "REGISTERED")
             {
-                Console.WriteLine($"\n[Barmen] REGISTRACIJA NEUSPESNA: {ack}");
+                Console.WriteLine($"\n[Sanker] REGISTRACIJA NEUSPESNA: {ack}");
                 sock.Close();
                 return;
             }
 
-            Console.WriteLine("\n[Barmen] USPESNO REGISTROVAN, CEKAM NARUDZBINE...");
+            Console.WriteLine("\n[Sanker] USPESNO REGISTROVAN, CEKAM NARUDZBINE...");
 
             Thread.Sleep(5000);
             var orderSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -59,7 +59,7 @@ namespace Barmen
                 bytesRecvd = sock.Receive(ackBuf);
                 if (bytesRecvd <= 0)
                 {
-                    Console.WriteLine("[Barmen] Veza je prekinuta od strane servera.");
+                    Console.WriteLine("[Sanker] Veza je prekinuta od strane servera.");
                     break;
                 }
 
@@ -82,7 +82,7 @@ namespace Barmen
                 }
 
                 Console.WriteLine(
-                    $"[Barmen] Porudzbina za sto {tableNo} od konobara {waiter}:");
+                    $"[Sanker] Porudzbina za sto {tableNo} od konobara {waiter}:");
                 foreach (Order o in ordered)
                 {
                     Console.WriteLine($"{o.ToString()}");
@@ -91,17 +91,17 @@ namespace Barmen
                 foreach (var o in ordered)
                 {
                     o._articleStatus = ArticleStatus.PRIPREMA;
-                    Console.WriteLine($"[Barmen] Priprema u toku : {o._articleName}");
+                    Console.WriteLine($"[Sanker] Priprema u toku : {o._articleName}");
                     Thread.Sleep(new Random().Next(500, 2000));
                     o._articleStatus = ArticleStatus.SPREMNO;
-                    Console.WriteLine($"[Barmen] Priprema gotova: {o._articleName}");
+                    Console.WriteLine($"[Sanker] Priprema gotova: {o._articleName}");
                 }
 
-                Console.WriteLine($"[Barmen] NARUDŽBINA KOMPLETIRANA STO:{tableNo} KONOBAR:{waiter}");
+                Console.WriteLine($"[Sanker] NARUDŽBINA KOMPLETIRANA STO:{tableNo} KONOBAR:{waiter}");
 
                 string readyMsg = $"READY;{tableNo};{waiter};pice\n";
                 orderSock.Send(Encoding.UTF8.GetBytes(readyMsg));
-                Console.WriteLine("[Barmen] Server obavješten o zavrsetku porudzbine");
+                Console.WriteLine("[Sanker] Server obavješten o zavrsetku porudzbine");
             }
 
             sock.Close();

@@ -11,7 +11,7 @@ namespace Domain.Helpers
         private string Convert(List<Order> orders)
         {
             sb.Append("\nNarudzba:\n");
-            sb.Append("\"|  Naziv artikla | Kategorija artikla | Cijena artikla |   Status   |\"");
+            sb.Append("\"|  Naziv  | Kategorija artikla | Cijena artikla |   Status   |\"");
             foreach (Order o in orders)
             {
                 sb.Append(o.ToString());

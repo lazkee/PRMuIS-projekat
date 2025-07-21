@@ -121,11 +121,11 @@ namespace Cook
                 foreach (Order o in ordered)
                 {
                     o._articleStatus = ArticleStatus.PRIPREMA;
-                    Console.WriteLine($"[Cook] Priprema u toku: {o._articleName}");
+                    Console.WriteLine($"[Kuvar] Priprema u toku: {o._articleName}");
                     Random rnd = new Random();
                     Thread.Sleep(rnd.Next(1000, 3000));
                     o._articleStatus = ArticleStatus.SPREMNO;
-                    Console.WriteLine($"[Cook] Priprema gotova: {o._articleName}");
+                    Console.WriteLine($"[Kuvar] Priprema gotova: {o._articleName}");
                 }
 
                 Thread.Sleep(2000);

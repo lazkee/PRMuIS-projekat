@@ -76,7 +76,7 @@ namespace Server
             Console.WriteLine("[Server] UDP ReservationVerificationServer started on port 4003.");
 
             //  TCP listener za porudžbine na portu 15000
-           
+           new Thread(() => StartOrderDeliveredListener()) { IsBackground = true}.Start();
             new Thread(() => StartOrderListener(prepService, 15000)) { IsBackground = true }.Start();
             Console.WriteLine("[Server] TCP OrderListener pokrenut na portu 15000.");
 
@@ -101,7 +101,7 @@ namespace Server
                     EndPoint localEndPoint = new IPEndPoint(IPAddress.Any, 4003);
                     socket.Bind(localEndPoint);
 
-                    Console.WriteLine("[ReservationServer] UDP Reservation Server is running on port 4003...");
+                    Console.WriteLine("[ReservationServer] UDP Server za rezervacije je pokrenut na portu 4003...");
 
 
                     while (true)
@@ -115,7 +115,7 @@ namespace Server
                             if (received <= 0) continue;
 
                             string message = Encoding.UTF8.GetString(buffer, 0, received).Trim();
-                            Console.WriteLine($"[ReservationServer] Received message: {message}");
+                            Console.WriteLine($"[ReservationServer] Primljena poruka: {message}");
 
                             if (int.TryParse(message, out int reservationCode))
                             {
@@ -126,7 +126,8 @@ namespace Server
                                 {
                                     tableNumber = managerRepo.GetTableNumber(reservationCode);
                                     managerRepo.RemoveReservation(reservationCode);
-                                    Console.WriteLine($"[ReservationServer] Valid reservation #{reservationCode}, assigned table {tableNumber}");
+                                    Console.WriteLine($"[ReservationServer] Rezervacija validna #{reservationCode}, dodijeljen sto {tableNumber}");
+                                    Console.WriteLine($"[Server] Sto broj {tableNumber} je zauzet");
 
                                     try
                                     {
@@ -149,7 +150,7 @@ namespace Server
                                 }
                                 else
                                 {
-                                    Console.WriteLine($"[ReservationServer] Invalid or used reservation code: {reservationCode}");
+                                    Console.WriteLine($"[ReservationServer] Netacan ili vec iskoristen broj rezervacije: {reservationCode}");
                                 }
 
                                 string response = isValid
@@ -161,7 +162,7 @@ namespace Server
                             }
                             else
                             {
-                                Console.WriteLine("[ReservationServer] Malformed message received.");
+                                Console.WriteLine("[ReservationServer] Primljen nepoznat tip poruke.");
                             }
                         }
                         catch (SocketException se)
@@ -176,7 +177,7 @@ namespace Server
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ReservationServer] Failed to start listener: {ex.Message}");
+                    Console.WriteLine($"[ReservationServer] Neuspjesno pokretanje servisa: {ex.Message}");
                 }
             }
         }
@@ -312,8 +313,6 @@ namespace Server
                                 Console.WriteLine($"[Server] Sto broj {brStola} je zatražio račun");
 
                                 string odgovor = kasa.Calculate(brStola);
-                                Console.WriteLine($"[Server] Odgovor: {odgovor}");
-
                                 client.Send(Encoding.UTF8.GetBytes(odgovor + "\n"));
                             }
                             else
@@ -453,10 +452,10 @@ namespace Server
                                             {
                                                 o._articleStatus = ArticleStatus.SPREMNO;
                                                 Console.WriteLine(o.ToString());
-                                                o._articleStatus = ArticleStatus.ISPORUCENO;
+                                                
                                             }
-
                                             
+
                                         }
                                         else
                                         {
@@ -497,7 +496,51 @@ namespace Server
 
 
 
+        private static void StartOrderDeliveredListener()
+        {
+            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            socket.Bind(new IPEndPoint(IPAddress.Any, 4011));
+            socket.Listen(100);
+            Console.WriteLine($"[Server] Čeka poruke o dostavljenoj porudzbini na TCP portu {4011}...");
 
+            while (true)
+            {
+                Socket client = socket.Accept();
+                new Thread(() =>
+                {
+                    try
+                    {
+                        var buffer = new byte[8192];
+                        int bytesReceived;
+                        while ((bytesReceived = client.Receive(buffer)) > 0)
+                        {
+                            if (bytesReceived <= 0) return;
+
+                            var line = Encoding.UTF8
+                                .GetString(buffer, 0, bytesReceived)
+                                .Trim();
+                            string[] parts = line.Split(';');
+                            if (parts[0] == "DELIVERED")
+                            {
+
+                                int brStola = int.Parse(parts[1]);
+                                Console.WriteLine($"[Server] Porudzbina za sto {brStola} je dostavljena");
+                                foreach (Order o in TableRepository.GetByID(brStola).TableOrders)
+                                {
+                                    o._articleStatus = ArticleStatus.ISPORUCENO;
+                                    Console.WriteLine(o.ToString());
+                                }
+
+                            }
+
+                        }
+                    }
+                    catch (Exception ex) { Console.WriteLine($"{ex.Message} {ex.StackTrace}"); }
+                    finally { client.Close(); }
+
+                }){ IsBackground = true }
+                .Start();
+            }   }
         private static void StartOrderListener(
                 ISendOrderForPreparation prepService,
                 int tcpPort)
@@ -508,8 +551,9 @@ namespace Server
                 SocketType.Stream,
                 ProtocolType.Tcp);
             orderSocket.Bind(new IPEndPoint(IPAddress.Any, tcpPort));
-            orderSocket.Listen(backlog: 10);  
+            orderSocket.Listen(10);  
             Console.WriteLine($"[Server] Čeka ORDER poruke na TCP portu {tcpPort}...");
+
 
             while (true)
             {
