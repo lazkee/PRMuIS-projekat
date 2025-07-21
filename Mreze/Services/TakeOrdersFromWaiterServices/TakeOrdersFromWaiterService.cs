@@ -29,12 +29,10 @@ namespace Services.TakeOrdersFromWaiterServices
 
             if (bytesRead < 4)
             {
-                throw new Exception("Failed to receive message length prefix.");
+                throw new Exception("Greska pri primanju duzine prefiksa poruke.");
             }
 
             int messageLength = BitConverter.ToInt32(lengthPrefix, 0);
-
-            //Console.WriteLine($"\nNew message length: {messageLength}\n");
 
             byte[] messageData = new byte[messageLength];
 
@@ -42,12 +40,11 @@ namespace Services.TakeOrdersFromWaiterServices
 
             if (bytesRead == 0)
             {
-                throw new Exception("Connection closed before message was fully received.");
+                throw new Exception("Prekinuta konekcija pre primanja cele poruke.");
             }
 
             return messageData;
         }
-
 
         public void ProcessAnOrder()
         {
@@ -67,14 +64,14 @@ namespace Services.TakeOrdersFromWaiterServices
                     byte[] waiterIdData = ReceiveMessage(clientSocket);
                     string waiterIdString = Encoding.UTF8.GetString(waiterIdData);
                     int waiterId = int.Parse(waiterIdString);
-                    Console.WriteLine($"\nWaiterID: {waiterId} sent a new order!");
+                    Console.WriteLine($"\nKonobar #{waiterId} poslao novu porudzbinu!");
 
                     byte[] tableData = ReceiveMessage(clientSocket);
                     using (MemoryStream ms = new MemoryStream(tableData))
                     {
                         BinaryFormatter bf = new BinaryFormatter();
                         Table table = (Table)bf.Deserialize(ms);
-                        Console.WriteLine($"New order is for the table #{table.TableNumber}");
+                        Console.WriteLine($"Nova porudzbina je za sto #{table.TableNumber}");
 
                         IEnumerable<Table> tables = _readTablesService.GetAllTables();
                         foreach (Table t in tables)
@@ -82,24 +79,15 @@ namespace Services.TakeOrdersFromWaiterServices
                             if (t.TableNumber == table.TableNumber)
                             {
                                 t.TableOrders = table.TableOrders;
-                                Console.WriteLine($"Updated table: #{t.TableNumber}\n");
+                                Console.WriteLine($"Azuriran sto broj #{t.TableNumber}\n");
                                 Console.WriteLine(t);
                             }
                         }
-
-                        //foreach(Table t in tables)
-                        //{
-                        //    Console.WriteLine(t);
-                        //}
-
-                        // _sendOrderForPreparation.SendOrder(table);
                     }
-
-
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error processing message: {ex.Message}");
+                    Console.WriteLine($"Greska pri procesuiranju poruke: {ex.Message}");
                 }
                 finally
                 {
@@ -107,6 +95,5 @@ namespace Services.TakeOrdersFromWaiterServices
                 }
             }
         }
-
     }
 }

@@ -23,7 +23,7 @@ namespace Services.ReleaseATableServices
         {
             new Thread(() =>
             {
-                //Console.WriteLine("[Server] ReservationExpiryService started.");
+                //Console.WriteLine("[Server] pokrenut servis za brisanje isteklih rezervacija.");
 
                 while (true)
                 {
@@ -31,29 +31,27 @@ namespace Services.ReleaseATableServices
                     var expired = _managerRepository.GetExpiredReservations();
                     foreach (var expiredRes in expired)
                     {
-                        // Inform table server to release the table (UDP to 4001)
                         using (var client = new UdpClient())
                         {
-                            string msg = $"CANCEL_RESERVATION;{expiredRes.Table.TableNumber}";  //Key je table number
+                            string msg = $"CANCEL_RESERVATION;{expiredRes.Table.TableNumber}";
                             byte[] data = Encoding.UTF8.GetBytes(msg);
                             client.Send(data, data.Length, "127.0.0.1", _releasePort);
 
-                            // optionally read confirmation (non-blocking)
                             client.Client.ReceiveTimeout = 1000;
                             try
                             {
                                 var ep = new IPEndPoint(IPAddress.Any, 0);
                                 var response = client.Receive(ref ep);
                                 string reply = Encoding.UTF8.GetString(response);
-                                //Console.WriteLine($"[Auto-Cancel] {reply}");
+
                                 _managerRepository.RemoveReservation(expiredRes.Key);
-                                Console.WriteLine($"\n[Auto-Cancel] Reservation #{expiredRes.Key} for table {expiredRes.Key} expired and was removed.");
+                                Console.WriteLine($"\n[Brisanje rezervacija] Rezervacija #{expiredRes.Key} za sto {expiredRes.Key} je istekla i obrisana je.");
                             }
                             catch { }
                         }
                     }
                     _managerRepository.SetManagerState(managerNumber, false);
-                    Thread.Sleep(10000); // check every 10 seconds
+                    Thread.Sleep(10000);
                 }
 
             })

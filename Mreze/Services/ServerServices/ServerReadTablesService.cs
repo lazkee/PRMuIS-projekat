@@ -10,7 +10,6 @@ namespace Services.ServerServices
     public class ServerReadTablesService : IReadService
     {
         
-
         public IEnumerable<Table> GetAllTables()
         {
             return TableRepository.GetAllTables();
@@ -40,10 +39,9 @@ namespace Services.ServerServices
             if(table != null)
             {
                 table.TableState = TableState.FREE;
-                Console.WriteLine($"Table {tableNumber} is {table.TableState}");
+                Console.WriteLine($"Sto broj {tableNumber} je {table.TableState}");
             }
         }
 
     }
 }
-

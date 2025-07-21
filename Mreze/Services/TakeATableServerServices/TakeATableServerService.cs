@@ -31,27 +31,24 @@ namespace Services.TakeATableServices
             while (true)
             {
                 var buf = new byte[1024];
-                // 1) Čitanje zahteva
                 int len = _serverSocketUdp.ReceiveFrom(buf, ref _remoteEp);
                 var msg = Encoding.UTF8.GetString(buf, 0, len);
-                // ocekivani format: TAKE_TABLE;{waiterId};{numGuests}
+
                 var parts = msg.Split(';');
                 int waiterId = int.Parse(parts[1]);
                 int numGuests = int.Parse(parts[2]);
                 string clientType = parts[3];
                 int reservationNumber = int.Parse(parts[4]);
-                // 2) Provera maksimalnog kapaciteta stola
                 string reply;
 
                 if (numGuests <= 10)
                 {
-                    // 2.1) Provera slobodnog stola
                     int freeTable = _readService.GetFreeTableFor(numGuests);
 
                     if (freeTable >= 0)
                     {
                         reply = $"TABLE_FREE;{freeTable}";
-                        // Obelezi sto kao zauzet
+
                         _readService.OccupyTable(freeTable, waiterId);
                         if (clientType == "MANAGER")
                         {
@@ -67,12 +64,9 @@ namespace Services.TakeATableServices
                     }
                 }
                 else { reply = "TABLE_BUSY"; }
-                // 3) Slanje odgovora
+
                 var outData = Encoding.UTF8.GetBytes(reply);
                 _serverSocketUdp.SendTo(outData, 0, outData.Length, SocketFlags.None, _remoteEp);
-
-
-                // Console.WriteLine($"Odgovor klijentu {_remoteEp.Address}:{_remoteEP.Port} → {reply}");
             }
         }
     }
